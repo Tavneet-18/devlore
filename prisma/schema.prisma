@@ -1,0 +1,71 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Event {
+  id         String    @id @default(cuid())
+  title      String
+  summary    String?
+  description String?
+  date       DateTime
+  endDate    DateTime?
+  city       String?
+  country    String    @default("India")
+  isOnline   Boolean   @default(false)
+  eventType  String
+  organizer  String
+  link       String?
+  tags       String    @default("[]")
+  beginnerFriendly Boolean @default(false)
+  source     String    @default("manual")
+  status     String    @default("APPROVED")
+  viewCount  Int       @default(0)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  // Ingest dedupe fields
+  externalId String?   @unique
+  hash       String?
+  fetchedAt  DateTime  @default(now())
+  rawPayload Json?
+  expiresAt  DateTime?
+
+  bookmarks Bookmark[]
+  views     View[]
+
+  @@index([status])
+  @@index([eventType])
+  @@index([date])
+  @@index([externalId])
+  @@index([source, fetchedAt])
+  @@index([hash])
+}
+
+model Bookmark {
+  id        String   @id @default(cuid())
+  eventId   String
+  viewerId  String
+  createdAt DateTime @default(now())
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([viewerId, eventId])
+  @@index([viewerId])
+}
+
+model View {
+  id        String   @id @default(cuid())
+  eventId   String
+  viewerId  String
+  createdAt DateTime @default(now())
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([viewerId])
+  @@index([eventId])
+}

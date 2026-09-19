@@ -1,0 +1,125 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-midnight: #0B0D17;
+  --color-ink: #101326;
+  --color-surface: #1A1A36;
+  --color-card: #1E1E3A;
+  --color-primary: #7C5CFF;
+  --color-secondary: #FF6B6B;
+  --color-tertiary: #4ECDC4;
+  --color-accent: #FFB84D;
+  --color-muted: #A5A6C5;
+  --color-faint: #6C6D8A;
+  --color-cyanGlow: #00F0FF;
+  --color-brand-50: #f0edff;
+  --color-brand-100: #e0d9ff;
+  --color-brand-200: #c7b8ff;
+  --color-brand-300: #a693ff;
+  --color-brand-400: #8b6cff;
+  --color-brand-500: #7C5CFF;
+  --color-brand-600: #6b4de6;
+  --color-brand-700: #5a3fd1;
+  --font-sans: var(--font-space-grotesk);
+  --font-mono: var(--font-space-grotesk);
+}
+
+:root {
+  --background: #0B0D17;
+  --foreground: #ffffff;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #1E1E3A #0B0D17;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: #0B0D17;
+  color: #ffffff;
+  font-family: var(--font-space-grotesk), "Space Grotesk", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+::selection {
+  background: #7C5CFF;
+  color: white;
+}
+
+::-webkit-scrollbar {
+  height: 6px;
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #0B0D17;
+}
+::-webkit-scrollbar-thumb {
+  background: #1E1E3A;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #7C5CFF;
+}
+
+/* Aurora orbs */
+.aurora-glow-1 {
+  position: absolute;
+  width: 550px;
+  height: 550px;
+  background: radial-gradient(circle, rgba(124, 92, 255, 0.22) 0%, rgba(11, 13, 23, 0) 70%);
+  filter: blur(80px);
+  pointer-events: none;
+}
+.aurora-glow-2 {
+  position: absolute;
+  width: 480px;
+  height: 480px;
+  background: radial-gradient(circle, rgba(78, 205, 196, 0.16) 0%, rgba(11, 13, 23, 0) 70%);
+  filter: blur(90px);
+  pointer-events: none;
+}
+
+/* Ticket perforated */
+.ticket-notch-top,
+.ticket-notch-bottom {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border-radius: 9999px;
+  background: #0B0D17;
+  border: 1px solid rgba(255,255,255,0.1);
+  right: -8px;
+  z-index: 2;
+}
+.ticket-notch-top { top: -8px; }
+.ticket-notch-bottom { bottom: -8px; }
+
+@keyframes devlore-fade-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-up {
+  animation: devlore-fade-up 0.35s ease-out both;
+}
+
+@keyframes devlore-shimmer {
+  100% { transform: translateX(100%); }
+}
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: #1A1A36;
+}
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(124,92,255,0.2), transparent);
+  animation: devlore-shimmer 1.4s infinite;
+}

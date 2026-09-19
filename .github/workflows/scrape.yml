@@ -1,0 +1,50 @@
+name: Daily Scrape (Playwright + Groq)
+
+on:
+  schedule:
+    - cron: "0 2 * * *" # 02:00 IST = 20:30 UTC previous day -> use 02:00 UTC for simplicity
+  workflow_dispatch:
+    inputs:
+      city:
+        description: "Single city (optional, e.g. Bangalore)"
+        required: false
+      dry_run:
+        description: "Dry run (no DB write)"
+        type: boolean
+        default: false
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Run daily scrape
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          AI_PROVIDER: ${{ secrets.AI_PROVIDER || 'mock' }}
+          DISCOVERY_MODE: live
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -n "${{ inputs.city }}" ]; then
+            npx tsx scripts/daily-scrape.ts --city="${{ inputs.city }}" ${{ inputs.dry_run == 'true' && '--dry-run' || '' }}
+          else
+            npx tsx scripts/daily-scrape.ts ${{ inputs.dry_run == 'true' && '--dry-run' || '' }}
+          fi
+      - name: Fallback curl (if script failed, hit Vercel cron)
+        if: failure()
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -n "$APP_URL" ]; then
+            curl -s -H "Authorization: Bearer $CRON_SECRET" "$APP_URL/api/cron/ingest" | head -c 2000
+          fi
