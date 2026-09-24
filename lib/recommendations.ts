@@ -63,8 +63,17 @@ export async function recommendForViewer(
     if (e.city) weights.set(`city:${e.city}`, (weights.get(`city:${e.city}`) ?? 0) + 6);
   }
 
+  const now = new Date();
+
   const scored = all
-    .filter((e) => e.status === "APPROVED" && !engagedIds.has(e.id) && e.date >= new Date())
+    .filter(
+      (e) =>
+        e.status === "APPROVED" &&
+        !engagedIds.has(e.id) &&
+        // Still upcoming if either endpoint is in the future — hackathons
+        // often start earlier while registration stays open.
+        (e.date >= now || (e.endDate !== null && e.endDate >= now))
+    )
     .map((e) => {
       let score = 0;
       for (const t of parseTags(e)) score += weights.get(t) ?? 0;

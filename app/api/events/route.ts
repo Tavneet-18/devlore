@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { toEventDTO } from "@/lib/events";
 import { EVENT_TYPES } from "@/lib/constants";
@@ -30,25 +31,42 @@ export async function GET(request: NextRequest) {
   const inWeek = new Date(today.getTime() + 7 * 86400000);
   const inMonth = new Date(today.getTime() + 30 * 86400000);
 
-  const where: Record<string, unknown> = {
+  // Collected as a local array because Prisma types AND as a union.
+  const and: Prisma.EventWhereInput[] = [
+    // Still relevant = start OR end in the future. Hackathons often have a
+    // start date in the past while registration remains open.
+    { OR: [{ date: { gte: today } }, { endDate: { gte: today } }] },
+  ];
+
+  if (city) {
+    // Online events match every city filter, mirroring the UI expectation.
+    and.push({ OR: [{ city: { contains: city } }, { isOnline: true }] });
+  }
+
+  if (q) {
+    and.push({
+      OR: [
+        { title: { contains: q } },
+        { summary: { contains: q } },
+        { city: { contains: q } },
+        { tags: { contains: q } },
+      ],
+    });
+  }
+
+  // Timeframe selects events overlapping the coming window.
+  if (timeframe === "week") and.push({ date: { lte: inWeek } });
+  if (timeframe === "month") and.push({ date: { lte: inMonth } });
+
+  const where: Prisma.EventWhereInput = {
     status: includePending ? { in: ["APPROVED", "PENDING"] } : "APPROVED",
-    date: { gte: today },
+    AND: and,
   };
 
   if (type && EVENT_TYPES.includes(type as never)) where.eventType = type;
   if (mode === "online") where.isOnline = true;
   if (mode === "offline") where.isOnline = false;
   if (beginner) where.beginnerFriendly = true;
-  if (q) {
-    where.OR = [
-      { title: { contains: q } },
-      { summary: { contains: q } },
-      { city: { contains: q } },
-      { tags: { contains: q } },
-    ];
-  }
-  if (timeframe === "week") where.date = { gte: today, lte: inWeek };
-  if (timeframe === "month") where.date = { gte: today, lte: inMonth };
 
   const [events, bookmarked] = await Promise.all([
     db.event.findMany({
@@ -62,11 +80,13 @@ export async function GET(request: NextRequest) {
 
   const bookmarkedIds = new Set(bookmarked.map((b) => b.eventId));
 
+  const liveMode = (process.env.DISCOVERY_MODE ?? "mock") === "live";
+
   return NextResponse.json({
     count: events.length,
     filters: { city, type, mode, timeframe, beginner, q },
     events: events.map((e) => toEventDTO(e, bookmarkedIds)),
-    sources: ["mock:devpost", "mock:unstop", "mock:meetup", "mock:gdg"],
+    sources: ["devpost", "unstop", "gdg", "manual"].map((s) => `${liveMode ? "live" : "mock"}:${s}`),
   });
 }
 

@@ -1,8 +1,9 @@
 import { createHash } from "crypto";
+import type { Prisma } from "@prisma/client";
 import { db } from "./db";
 import { discoverEvents } from "./ai/discovery";
 import { getEnhancer } from "./ai";
-import { isVerifiedOrganizer } from "./constants";
+import { isEventType, isVerifiedOrganizer } from "./constants";
 
 function hashEvent(title: string, date: string, city?: string, link?: string): string {
   if (link) return createHash("sha1").update(link).digest("hex");
@@ -11,6 +12,11 @@ function hashEvent(title: string, date: string, city?: string, link?: string): s
 
 function hashContent(event: { title: string; description: string; date: string; city?: string }) {
   return createHash("sha1").update(`${event.title}|${event.description}|${event.date}|${event.city ?? ""}`).digest("hex");
+}
+
+/** Only allow known event types through; anything else is normalised to "other". */
+function normaliseEventType(value: string | undefined): string {
+  return value && isEventType(value) ? value : "other";
 }
 
 export async function ingestCity(city: string): Promise<{ city: string; found: number; upserted: number; approved: number; pending: number; errors: number }> {
@@ -31,10 +37,11 @@ export async function ingestCity(city: string): Promise<{ city: string; found: n
       const hash = hashContent({ title: raw.title, description: raw.description, date: raw.date, city: raw.city });
       const verified = isVerifiedOrganizer(raw.organizer);
       const status = verified ? "APPROVED" : "PENDING";
+      const rawPayload = JSON.parse(JSON.stringify(raw)) as Prisma.InputJsonValue;
 
       const existing = await db.event.findUnique({ where: { externalId } });
       if (existing && existing.hash === hash) {
-        // No change — just bump fetchedAt
+        // Content unchanged — only bump fetchedAt so we can track freshness.
         await db.event.update({ where: { externalId }, data: { fetchedAt: new Date() } });
         continue;
       }
@@ -49,7 +56,7 @@ export async function ingestCity(city: string): Promise<{ city: string; found: n
           endDate: raw.endDate ? new Date(raw.endDate) : null,
           city: raw.city ?? null,
           isOnline: raw.isOnline ?? enhancement.isOnline,
-          eventType: raw.eventType ?? "other",
+          eventType: normaliseEventType(raw.eventType),
           organizer: raw.organizer,
           link: raw.link ?? null,
           tags: JSON.stringify(enhancement.tags),
@@ -59,7 +66,7 @@ export async function ingestCity(city: string): Promise<{ city: string; found: n
           externalId,
           hash,
           fetchedAt: new Date(),
-          rawPayload: raw as unknown as object,
+          rawPayload,
         },
         update: {
           title: raw.title,
@@ -69,17 +76,17 @@ export async function ingestCity(city: string): Promise<{ city: string; found: n
           endDate: raw.endDate ? new Date(raw.endDate) : null,
           city: raw.city ?? null,
           isOnline: raw.isOnline ?? enhancement.isOnline,
-          eventType: raw.eventType ?? "other",
+          eventType: normaliseEventType(raw.eventType),
           organizer: raw.organizer,
           link: raw.link ?? null,
           tags: JSON.stringify(enhancement.tags),
           beginnerFriendly: enhancement.beginnerFriendly,
           source: raw.source,
-          // Don't overwrite manual status changes if already moderated to REJECTED
+          // Never clobber a moderator's REJECTED decision on re-ingest.
           ...(existing?.status === "REJECTED" ? {} : { status }),
           hash,
           fetchedAt: new Date(),
-          rawPayload: raw as unknown as object,
+          rawPayload,
         },
       });
       upserted++;
@@ -96,6 +103,8 @@ export async function ingestCity(city: string): Promise<{ city: string; found: n
 export async function ingestAll(cities: string[]) {
   const results = await Promise.allSettled(cities.map((c) => ingestCity(c)));
   return results.map((r, i) =>
-    r.status === "fulfilled" ? r.value : { city: cities[i], found: 0, upserted: 0, approved: 0, pending: 0, errors: 1 }
+    r.status === "fulfilled"
+      ? r.value
+      : { city: cities[i], found: 0, upserted: 0, approved: 0, pending: 0, errors: 1 }
   );
 }

@@ -3,8 +3,9 @@ import { discoverEvents } from "@/lib/ai/discovery";
 
 /**
  * GET /api/discover?location=Bangalore
- * Runs the AI discovery pipeline (fetch → clean → dedupe) across the
- * simulated external platforms. Swap sources via DISCOVERY_MODE=live.
+ * Read-only preview of the discovery pipeline (fetch → clean → dedupe).
+ * Does NOT write to the database — that is what /api/cron/ingest does.
+ * Source set is chosen by DISCOVERY_MODE (mock | live).
  */
 export async function GET(request: NextRequest) {
   const location = request.nextUrl.searchParams.get("location")?.trim();
@@ -16,6 +17,9 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({
     ...result,
-    note: "Discovered from simulated Devpost/Unstop/Meetup/GDG feeds.",
+    note:
+      result.provider === "live-sources"
+        ? "Fetched live from public source APIs. Run /api/cron/ingest to persist."
+        : "Simulated feeds (DISCOVERY_MODE=mock).",
   });
 }

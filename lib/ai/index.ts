@@ -2,22 +2,24 @@ import type { AIEnhancer, DiscoverySource } from "./types";
 import { MockAIEnhancer } from "./mockEnhancer";
 import { GroqEnhancer } from "./groqEnhancer";
 import { MOCK_SOURCES } from "./mockSources";
-import { PLAYWRIGHT_SOURCES } from "./sources/playwrightSources";
+import { LIVE_SOURCES } from "./sources/liveSources";
 
 /**
  * PLUGGABLE PROVIDER FACTORY
  * ==========================
  *
- * This is the single place to swap mock AI logic for real providers:
+ * The single switchboard between placeholder data and real integrations.
+ * Selected entirely by environment variables, so no code changes are needed
+ * to move between providers:
  *
- *  1. Implement the `AIEnhancer` interface (see ./types.ts) in a new file,
- *     e.g. `openaiEnhancer.ts`, calling a real LLM API.
- *  2. Return it from `getEnhancer()` below when AI_PROVIDER=openai.
- *  3. Implement live `DiscoverySource` fetchers (Devpost / Unstop /
- *     Meetup / GDG public APIs) and return them from `getDiscoverySources()`
- *     when DISCOVERY_MODE=live.
+ *   AI_PROVIDER     mock  -> keyword enhancer, free, no network
+ *                   groq  -> Groq LLM (OpenAI-compatible), set GROQ_API_KEY
  *
- * No other code needs to change.
+ *   DISCOVERY_MODE  mock  -> bundled placeholder events, no network
+ *                   live  -> real public source APIs (see ./sources)
+ *
+ * To add a provider: implement the interface in ./types.ts, then return it
+ * from the matching factory function below.
  */
 
 export function getEnhancer(): AIEnhancer {
@@ -34,13 +36,9 @@ export function getEnhancer(): AIEnhancer {
   }
 }
 
-export function getDiscoverySources(_location: string): DiscoverySource[] | Promise<DiscoverySource[]> {
+export function getDiscoverySources(_location: string): DiscoverySource[] {
   void _location;
-  const mode = process.env.DISCOVERY_MODE ?? "mock";
-  if (mode === "live") {
-    return PLAYWRIGHT_SOURCES;
-  }
-  return MOCK_SOURCES;
+  return (process.env.DISCOVERY_MODE ?? "mock") === "live" ? LIVE_SOURCES : MOCK_SOURCES;
 }
 
 export function dedupeEvents<T extends { title: string; date?: string; city?: string; source?: string }>(raw: T[]) {

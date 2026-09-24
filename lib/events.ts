@@ -71,14 +71,38 @@ export type EventQuery = {
 };
 
 export function buildEventWhere(input: EventQuery): Prisma.EventWhereInput {
-  const where: Prisma.EventWhereInput = {
-    status: "APPROVED",
-    date: { gte: new Date() },
+  const now = new Date();
+
+  // An event is still relevant if either its start OR its end is in the
+  // future. Multi-day events (and hackathons with an open submission window)
+  // often have a start date in the past while registration is still open.
+  const stillRelevant: Prisma.EventWhereInput = {
+    OR: [{ date: { gte: now } }, { endDate: { gte: now } }],
   };
 
+  // Local array because Prisma types AND as a union of object | array.
+  const and: Prisma.EventWhereInput[] = [stillRelevant];
+
   if (input.city) {
-    where.OR = [{ city: { contains: input.city } }, { isOnline: true }];
+    // Online events are always relevant to a city search.
+    and.push({ OR: [{ city: { contains: input.city } }, { isOnline: true }] });
   }
+
+  if (input.q) {
+    and.push({ title: { contains: input.q } });
+  }
+
+  // Timeframe selects events overlapping the coming window.
+  if (input.timeframe === "week") {
+    and.push({ date: { lte: addDays(now, 7) } });
+  } else if (input.timeframe === "month") {
+    and.push({ date: { lte: addDays(now, 30) } });
+  }
+
+  const where: Prisma.EventWhereInput = {
+    status: "APPROVED",
+    AND: and,
+  };
 
   if (input.type && input.type !== "All" && isEventType(input.type)) {
     where.eventType = input.type;
@@ -87,17 +111,7 @@ export function buildEventWhere(input: EventQuery): Prisma.EventWhereInput {
   if (input.mode === "online") where.isOnline = true;
   else if (input.mode === "offline") where.isOnline = false;
 
-  if (input.timeframe === "week") {
-    where.date = { gte: new Date(), lte: addDays(new Date(), 7) };
-  } else if (input.timeframe === "month") {
-    where.date = { gte: new Date(), lte: addDays(new Date(), 30) };
-  }
-
   if (input.beginner) where.beginnerFriendly = true;
-
-  if (input.q) {
-    where.AND = [{ title: { contains: input.q } }];
-  }
 
   return where;
 }

@@ -1,6 +1,7 @@
 import { PrismaClient } from "@prisma/client";
-import { discoverEvents } from "../lib/ai/discovery";
+import { ingestCity } from "../lib/ingest";
 import { getEnhancer } from "../lib/ai";
+import { isEventType } from "../lib/constants";
 import type { RawEvent } from "../lib/ai/types";
 
 const db = new PrismaClient();
@@ -8,6 +9,10 @@ const enhancer = getEnhancer();
 
 const CITIES = ["Bangalore", "Mumbai", "Delhi", "Hyderabad", "Pune", "Chennai"];
 
+/**
+ * Two hand-written submissions used to demonstrate the moderation queue.
+ * They are inserted as PENDING so /admin has something to review.
+ */
 const MANUAL_PENDING: RawEvent[] = [
   {
     source: "manual",
@@ -36,68 +41,48 @@ const MANUAL_PENDING: RawEvent[] = [
 ];
 
 async function main() {
-  console.log(`Seeding events for cities: ${CITIES.join(", ")}`);
+  console.log(`Seeding cities: ${CITIES.join(", ")}`);
 
-  const allRaw: RawEvent[] = [];
+  // Real (or mock) discovery, run through the same idempotent upsert the daily
+  // cron uses — so re-seeding never creates duplicate events.
   for (const city of CITIES) {
-    const result = await discoverEvents(city);
-    allRaw.push(...result.events);
+    const r = await ingestCity(city);
+    console.log(
+      `  ${city.padEnd(10)} found=${r.found} upserted=${r.upserted} approved=${r.approved} pending=${r.pending} errors=${r.errors}`
+    );
   }
 
-  const seen = new Set<string>();
-  let created = 0;
-
-  for (const raw of allRaw) {
-    const key = `${raw.title}|${raw.date}|${raw.city ?? ""}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-
-    const enhancement = await enhancer.enhance(raw.title, raw.description, raw.link);
-
-    await db.event.create({
-      data: {
-        title: raw.title,
-        description: raw.description,
-        summary: enhancement.summary,
-        date: new Date(raw.date),
-        city: raw.city ?? null,
-        isOnline: enhancement.isOnline,
-        eventType: raw.eventType ?? "other",
-        organizer: raw.organizer,
-        link: raw.link ?? null,
-        tags: JSON.stringify(enhancement.tags),
-        beginnerFriendly: enhancement.beginnerFriendly,
-        source: raw.source,
-        status: "APPROVED",
-        viewCount: Math.floor(Math.random() * 40),
-      },
-    });
-    created += 1;
-  }
-
+  // Manual moderation-queue samples, keyed so re-seeding is safe.
+  let manual = 0;
   for (const raw of MANUAL_PENDING) {
+    const externalId = raw.link ?? `manual:${raw.title}`;
     const enhancement = await enhancer.enhance(raw.title, raw.description, raw.link);
-    await db.event.create({
-      data: {
+    await db.event.upsert({
+      where: { externalId },
+      create: {
         title: raw.title,
         description: raw.description,
         summary: enhancement.summary,
         date: new Date(raw.date),
         city: raw.city ?? null,
         isOnline: enhancement.isOnline,
-        eventType: raw.eventType ?? "other",
+        eventType: raw.eventType && isEventType(raw.eventType) ? raw.eventType : "other",
         organizer: raw.organizer,
         link: raw.link ?? null,
         tags: JSON.stringify(enhancement.tags),
         beginnerFriendly: enhancement.beginnerFriendly,
         source: "manual",
         status: "PENDING",
+        externalId,
+        fetchedAt: new Date(),
       },
+      update: {},
     });
-    created += 1;
+    manual += 1;
   }
 
-  console.log(`Created ${created} events (approved + pending).`);
+  const total = await db.event.count();
+  console.log(`Seeded ${manual} moderation sample(s). Database now has ${total} events.`);
 }
 
 main()

@@ -1,47 +1,97 @@
 #!/usr/bin/env tsx
 /**
- * Daily scrape runner — Playwright MCP + Groq (or mock).
- * Usage:
- *   npx tsx scripts/daily-scrape.ts                 # all cities, live ingest
- *   npx tsx scripts/daily-scrape.ts --city=Bangalore
- *   npx tsx scripts/daily-scrape.ts --dry-run       # no DB write, just log
+ * Daily ingest runner.
  *
- * Can be run locally or via GitHub Actions (see .github/workflows/scrape.yml).
- * Alternatively, trigger the hosted cron: curl -H "Authorization: Bearer $CRON_SECRET" $APP_URL/api/cron/ingest
+ * Usage:
+ *   npx tsx --env-file=.env scripts/daily-scrape.ts                    # all cities
+ *   npx tsx --env-file=.env scripts/daily-scrape.ts --city=Bangalore   # single city
+ *   npx tsx --env-file=.env scripts/daily-scrape.ts --dry-run          # no DB writes
+ *
+ * `--env-file=.env` is required: tsx does not read .env on its own, and the
+ * discovery/AI mode flags are read from the environment.
+ *
+ * Writes a summary to ingest-summary.json for CI artifacts.
+ *
+ * The hosted equivalent is GET /api/cron/ingest, which Vercel Cron triggers
+ * daily. This script exists so the job can also run from GitHub Actions or
+ * locally without going through HTTP.
  */
 
+import { writeFile } from "node:fs/promises";
 import { ingestAll, ingestCity } from "../lib/ingest";
+import { discoverEvents } from "../lib/ai/discovery";
 
 const CITIES = ["Bangalore", "Mumbai", "Delhi", "Hyderabad", "Pune", "Chennai"];
 
+function parseArgs(argv: string[]) {
+  const city = argv.find((a) => a.startsWith("--city="))?.slice("--city=".length)?.trim();
+  return {
+    dryRun: argv.includes("--dry-run"),
+    city: city && city.length > 0 ? city : undefined,
+  };
+}
+
+async function saveSummary(summary: unknown) {
+  try {
+    await writeFile("ingest-summary.json", JSON.stringify(summary, null, 2), "utf8");
+  } catch (e) {
+    console.warn(`Could not write ingest-summary.json: ${(e as Error).message}`);
+  }
+}
+
 async function main() {
-  const args = process.argv.slice(2);
-  const dryRun = args.includes("--dry-run");
-  const cityArg = args.find((a) => a.startsWith("--city="))?.split("=")[1];
+  const { dryRun, city } = parseArgs(process.argv.slice(2));
+  const cities = city ? [city] : CITIES;
+  const startedAt = new Date().toISOString();
+
+  console.log(
+    `Devlore ingest — mode=${dryRun ? "dry-run" : "write"} ` +
+      `discovery=${process.env.DISCOVERY_MODE ?? "mock"} ai=${process.env.AI_PROVIDER ?? "mock"} ` +
+      `cities=${cities.join(",")}`
+  );
 
   if (dryRun) {
-    console.log("DRY RUN — no DB write, discovery only");
-    // In dry-run we just call discoverEvents directly
-    const { discoverEvents } = await import("../lib/ai/discovery");
-    const cities = cityArg ? [cityArg] : CITIES;
-    for (const city of cities) {
-      const res = await discoverEvents(city);
-      console.log(`[${city}] found=${res.found} deduped=${res.deduped} sample=`, res.events.slice(0, 2).map((e) => e.title));
+    const results = [];
+    for (const c of cities) {
+      const res = await discoverEvents(c);
+      const preview = res.events.slice(0, 3).map((e) => ({
+        title: e.title,
+        date: e.date,
+        city: e.city ?? null,
+        isOnline: e.isOnline ?? false,
+        organizer: e.organizer,
+        link: e.link ?? null,
+      }));
+      console.log(`  ${c.padEnd(10)} found=${res.found} deduped=${res.deduped}`);
+      for (const p of preview) console.log(`      - ${p.title} (${p.date.slice(0, 10)})`);
+      results.push({ city: c, found: res.found, deduped: res.deduped, preview });
     }
+    await saveSummary({ dryRun: true, startedAt, finishedAt: new Date().toISOString(), results });
     return;
   }
 
-  if (cityArg) {
-    console.log(`Ingesting single city: ${cityArg}`);
-    const res = await ingestCity(cityArg);
-    console.log(JSON.stringify(res, null, 2));
-  } else {
-    console.log(`Ingesting all cities: ${CITIES.join(", ")}`);
-    const results = await ingestAll(CITIES);
-    console.log(JSON.stringify(results, null, 2));
-    const total = results.reduce((acc, r) => ({ upserted: acc.upserted + r.upserted, approved: acc.approved + r.approved, pending: acc.pending + r.pending, errors: acc.errors + r.errors }), { upserted: 0, approved: 0, pending: 0, errors: 0 });
-    console.log(`TOTAL upserted=${total.upserted} approved=${total.approved} pending=${total.pending} errors=${total.errors}`);
+  const results = city ? [await ingestCity(city)] : await ingestAll(cities);
+  for (const r of results) {
+    console.log(
+      `  ${r.city.padEnd(10)} found=${r.found} upserted=${r.upserted} ` +
+        `approved=${r.approved} pending=${r.pending} errors=${r.errors}`
+    );
   }
+
+  const total = results.reduce(
+    (acc, r) => ({
+      upserted: acc.upserted + r.upserted,
+      approved: acc.approved + r.approved,
+      pending: acc.pending + r.pending,
+      errors: acc.errors + r.errors,
+    }),
+    { upserted: 0, approved: 0, pending: 0, errors: 0 }
+  );
+
+  console.log(
+    `DONE upserted=${total.upserted} approved=${total.approved} pending=${total.pending} errors=${total.errors}`
+  );
+  await saveSummary({ dryRun: false, startedAt, finishedAt: new Date().toISOString(), total, results });
 }
 
 main().catch((e) => {

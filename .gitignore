@@ -41,6 +41,9 @@ prisma/*.db-journal
 # vercel
 .vercel
 
+# ingest output
+ingest-summary.json
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
