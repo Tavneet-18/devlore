@@ -32,14 +32,14 @@ export default async function BookmarksPage() {
       </header>
 
       {events.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-line px-6 py-20 text-center">
+        <div className="mt-10 rounded-2xl border border-dashed border-line px-6 py-24 text-center">
           <p className="text-sm text-muted">You have not saved any events yet.</p>
           <Link href="/" className="mt-3 inline-block text-[13px] font-semibold text-primary hover:underline">
             Browse events →
           </Link>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-8 grid grid-cols-1 gap-4 lg:grid-cols-2">
           {events.map((e, i) => (
             <EventCard key={e.id} event={e} index={i} />
           ))}
