@@ -10,8 +10,31 @@ function hashEvent(title: string, date: string, city?: string, link?: string): s
   return createHash("sha1").update(`${title}|${date}|${(city ?? "").toLowerCase().trim()}`).digest("hex");
 }
 
-function hashContent(event: { title: string; description: string; date: string; city?: string }) {
-  return createHash("sha1").update(`${event.title}|${event.description}|${event.date}|${event.city ?? ""}`).digest("hex");
+/**
+ * Fingerprint the content we persist. Any field that affects what the user
+ * sees must be included, otherwise a changed banner (or link) would be
+ * treated as "unchanged" and never written.
+ */
+function hashContent(event: {
+  title: string;
+  description: string;
+  date: string;
+  city?: string;
+  link?: string;
+  imageUrl?: string;
+}) {
+  return createHash("sha1")
+    .update(
+      [
+        event.title,
+        event.description,
+        event.date,
+        event.city ?? "",
+        event.link ?? "",
+        event.imageUrl ?? "",
+      ].join("|")
+    )
+    .digest("hex");
 }
 
 /** Only allow known event types through; anything else is normalised to "other". */
@@ -34,7 +57,14 @@ export async function ingestCity(city: string): Promise<{ city: string; found: n
       if (Number.isNaN(date.getTime())) continue;
 
       const externalId = raw.link ?? `${raw.source}:${hashEvent(raw.title, raw.date, raw.city, raw.link)}`;
-      const hash = hashContent({ title: raw.title, description: raw.description, date: raw.date, city: raw.city });
+      const hash = hashContent({
+        title: raw.title,
+        description: raw.description,
+        date: raw.date,
+        city: raw.city,
+        link: raw.link,
+        imageUrl: raw.imageUrl,
+      });
       const status = moderationStatusFor(raw.source, raw.organizer);
       const rawPayload = JSON.parse(JSON.stringify(raw)) as Prisma.InputJsonValue;
 
