@@ -73,5 +73,26 @@ export async function GET() {
     out.tableCheck = `FAILED: ${String((e as Error).message).slice(0, 200)}`;
   }
 
+  // Verify the columns the app selects actually exist. A missing column makes
+  // every event query fail at runtime while connectivity still looks healthy,
+  // so surface it here instead of as an unexplained 500.
+  try {
+    const cols = await db.$queryRaw<{ column_name: string }[]>`
+      SELECT column_name FROM information_schema.columns
+      WHERE table_schema = 'public' AND table_name = 'Event'
+    `;
+    const present = new Set(cols.map((c) => c.column_name));
+    const required = [
+      "id", "title", "date", "endDate", "city", "isOnline", "eventType",
+      "organizer", "link", "imageUrl", "tags", "beginnerFriendly", "source",
+      "status", "viewCount", "summary", "description", "externalId", "hash",
+    ];
+    const missing = required.filter((c) => !present.has(c));
+    out.eventColumnsMissing = missing;
+    out.schemaUpToDate = missing.length === 0;
+  } catch (e) {
+    out.columnCheck = `FAILED: ${String((e as Error).message).slice(0, 200)}`;
+  }
+
   return Response.json(out, { status: 200 });
 }
