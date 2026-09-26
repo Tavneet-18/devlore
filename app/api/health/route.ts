@@ -23,6 +23,32 @@ export async function GET() {
   out.aiProvider = process.env.AI_PROVIDER ?? "(unset)";
   out.hasCronSecret = Boolean(process.env.CRON_SECRET);
 
+  // Report only the SHAPE of the password, never its value, so we can tell
+  // whether special characters still need percent-encoding.
+  const inspectPassword = (url?: string) => {
+    if (!url) return { present: false as const };
+    const schemeEnd = url.indexOf("://");
+    const at = url.lastIndexOf("@");
+    if (schemeEnd === -1 || at === -1) return { present: false as const };
+    const authority = url.slice(schemeEnd + 3, at);
+    const colon = authority.indexOf(":");
+    if (colon === -1) return { present: false as const };
+    const raw = authority.slice(colon + 1);
+
+    // Legal in a password, but MUST be percent-encoded in a connection string.
+    const found = Array.from(new Set(raw.match(/[@:#/?[\]]/g) ?? []));
+
+    return {
+      present: true as const,
+      length: raw.length,
+      hasUnencodedSpecial: found.length > 0,
+      specialCharsFound: found,
+    };
+  };
+
+  out.databasePassword = inspectPassword(process.env.DATABASE_URL);
+  out.directPassword = inspectPassword(process.env.DIRECT_URL);
+
   try {
     await db.$queryRaw`SELECT 1 AS ok`;
     out.connectivity = "OK";
