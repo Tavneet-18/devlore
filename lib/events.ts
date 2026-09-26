@@ -24,6 +24,7 @@ export interface EventDTO {
   eventType: string;
   organizer: string;
   link: string | null;
+  imageUrl: string | null;
   tags: string[];
   beginnerFriendly: boolean;
   source: string;
@@ -47,6 +48,7 @@ export function toEventDTO(event: Event, bookmarkedIds?: Set<string>): EventDTO 
     eventType: event.eventType,
     organizer: event.organizer,
     link: event.link,
+    imageUrl: event.imageUrl ?? null,
     tags: parseTags(event),
     beginnerFriendly: event.beginnerFriendly,
     source: event.source,

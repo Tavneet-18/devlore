@@ -100,6 +100,19 @@ function stripHtml(value: string): string {
 }
 
 /**
+ * Devpost returns protocol-relative thumbnail paths ("//host/path"). Browsers
+ * need an absolute URL, so promote them to https. Anything unparseable is
+ * dropped rather than rendered as a broken image.
+ */
+function normaliseImage(value: string): string | undefined {
+  const raw = value.trim();
+  if (!raw) return undefined;
+  const withScheme = raw.startsWith("//") ? `https:${raw}` : raw;
+  if (!/^https?:\/\//i.test(withScheme)) return undefined;
+  return withScheme;
+}
+
+/**
  * Source listings spell our cities inconsistently (Bengaluru vs Bangalore,
  * "Navi Mumbai" vs Mumbai, "Delhi NCR" vs Delhi). Expand each requested city
  * into the set of spellings that should count as a match.
@@ -204,6 +217,7 @@ const devpostFetch: ExtractFn = async (city) => {
           isOnline,
           organizer: String(h.organization_name ?? "Devpost"),
           link: String(h.url ?? "https://devpost.com/hackathons"),
+          imageUrl: normaliseImage(String(h.thumbnail_url ?? "")),
           eventType: "hackathon",
         };
 

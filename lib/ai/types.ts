@@ -21,6 +21,7 @@ export interface RawEvent {
   isOnline?: boolean;
   organizer: string;
   link?: string;
+  imageUrl?: string;
   eventType?: string;
 }
 

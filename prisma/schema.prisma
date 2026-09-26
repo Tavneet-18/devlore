@@ -21,6 +21,7 @@ model Event {
   eventType  String
   organizer  String
   link       String?
+  imageUrl   String?
   tags       String    @default("[]")
   beginnerFriendly Boolean @default(false)
   source     String    @default("manual")
