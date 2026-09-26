@@ -12,7 +12,7 @@ import {
 } from "@/lib/format";
 import { EVENT_TYPE_LABELS } from "@/lib/constants";
 import { BookmarkButton } from "@/components/BookmarkButton";
-import { EventCard } from "@/components/EventCard";
+import { EventCard, EventPoster } from "@/components/EventCard";
 import { getViewerId } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
@@ -110,30 +110,27 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
             </span>
           </div>
 
-          {/* Banner + countdown, both driven by real data */}
-          <div className="relative mt-6 overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-primary/15 via-card to-tertiary/10 p-1">
-            <div className="rounded-xl bg-card p-5">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <span className="text-xs font-bold uppercase tracking-wider text-muted">
-                  {phase === "ongoing" ? "Registration closes in" : phase === "upcoming" ? "Starts in" : "This event has closed"}
-                </span>
-                <span className="rounded-lg border border-white/10 bg-midnight px-3 py-1 font-mono text-xs font-bold text-white">
-                  {countdown(target)} remaining
-                </span>
-              </div>
+          {/* Countdown strip, from real data */}
+          <div className="mt-6 rounded-2xl border border-white/10 bg-gradient-to-r from-primary/15 via-card to-tertiary/10 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <span className="text-xs font-bold uppercase tracking-wider text-muted">
+                {phase === "ongoing"
+                  ? "Registration closes in"
+                  : phase === "upcoming"
+                    ? "Starts in"
+                    : "This event has closed"}
+              </span>
+              <span className="rounded-lg border border-white/10 bg-midnight px-3 py-1 font-mono text-xs font-bold text-white">
+                {countdown(target)} remaining
+              </span>
+            </div>
+          </div>
 
-              {dto.imageUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={dto.imageUrl}
-                  alt={dto.title}
-                  className="mt-4 h-56 w-full rounded-xl border border-white/10 object-cover"
-                />
-              ) : (
-                <div className="mt-4 flex h-56 w-full items-center justify-center rounded-xl border border-dashed border-white/10 bg-ink/40 text-sm text-muted">
-                  No banner image for this event
-                </div>
-              )}
+          {/* Official poster, shown at its natural square size */}
+          <div className="mt-4 flex justify-center">
+            <div className="rounded-2xl border border-white/10 bg-card/60 p-3">
+              <EventPoster src={dto.imageUrl} alt={dto.title} size="lg" />
+              <p className="mt-2 text-center text-[11px] text-faint">Official event poster</p>
             </div>
           </div>
 
