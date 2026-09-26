@@ -1,10 +1,20 @@
 import { EventForm } from "@/components/EventForm";
 
-export const metadata = { title: "List Your Event — Devlore" };
+export const metadata = { title: "Submit an event — Devlore" };
 
 export default function ListEventPage() {
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+    <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
+      <header className="mb-8">
+        <h1 className="text-[32px] font-bold leading-tight tracking-tight text-ink">
+          Submit an event
+        </h1>
+        <p className="mt-2 text-[15px] leading-relaxed text-muted">
+          Publish a hackathon, meetup, workshop or conference. A moderator reviews every
+          submission before it appears.
+        </p>
+      </header>
+
       <EventForm />
     </div>
   );
