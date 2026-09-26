@@ -31,6 +31,17 @@ export const AI_PROVIDER = process.env.AI_PROVIDER ?? "mock";
 export const BOOKMARK_COOKIE = "devlore_visitor";
 export const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 365;
 
+/**
+ * Platforms that vet their own listings. Events pulled from these sources are
+ * published immediately — the platform already did the vetting, and the
+ * organizer is whoever ran the event, not the platform.
+ */
+export const TRUSTED_SOURCES = ["devpost", "unstop", "gdg", "meetup"] as const;
+
+/**
+ * Organizations we publish for regardless of source — partners and known
+ * community orgs that are safe to show without manual review.
+ */
 export const VERIFIED_ORGANIZERS = [
   "TechForge Collective",
   "Devpost",
@@ -45,6 +56,23 @@ export const VERIFIED_ORGANIZERS = [
 export function isVerifiedOrganizer(organizer: string): boolean {
   const normalized = organizer.toLowerCase().trim();
   return VERIFIED_ORGANIZERS.some((v) => normalized.includes(v.toLowerCase()));
+}
+
+export function isTrustedSource(source: string): boolean {
+  return (TRUSTED_SOURCES as readonly string[]).includes(source.toLowerCase().trim());
+}
+
+/**
+ * Decide the moderation status for an ingested event.
+ *
+ * Auto-published when the event came from a platform that vets its listings,
+ * or when the organizer is on the verified list. Everything else — notably
+ * user submissions, which always have source "manual" — waits for review.
+ */
+export function moderationStatusFor(source: string, organizer: string): "APPROVED" | "PENDING" {
+  if (isTrustedSource(source)) return "APPROVED";
+  if (isVerifiedOrganizer(organizer)) return "APPROVED";
+  return "PENDING";
 }
 
 export type LocationOptions = {

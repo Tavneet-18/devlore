@@ -3,7 +3,7 @@ import type { Prisma } from "@prisma/client";
 import { db } from "./db";
 import { discoverEvents } from "./ai/discovery";
 import { getEnhancer } from "./ai";
-import { isEventType, isVerifiedOrganizer } from "./constants";
+import { isEventType, moderationStatusFor } from "./constants";
 
 function hashEvent(title: string, date: string, city?: string, link?: string): string {
   if (link) return createHash("sha1").update(link).digest("hex");
@@ -35,8 +35,7 @@ export async function ingestCity(city: string): Promise<{ city: string; found: n
 
       const externalId = raw.link ?? `${raw.source}:${hashEvent(raw.title, raw.date, raw.city, raw.link)}`;
       const hash = hashContent({ title: raw.title, description: raw.description, date: raw.date, city: raw.city });
-      const verified = isVerifiedOrganizer(raw.organizer);
-      const status = verified ? "APPROVED" : "PENDING";
+      const status = moderationStatusFor(raw.source, raw.organizer);
       const rawPayload = JSON.parse(JSON.stringify(raw)) as Prisma.InputJsonValue;
 
       const existing = await db.event.findUnique({ where: { externalId } });
