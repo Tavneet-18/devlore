@@ -12,7 +12,7 @@ const TABS = [
   { id: "REJECTED", label: "Rejected" },
 ] as const;
 
-const STATUS_CLASS: Record<string, string> = {
+const STATUS_TEXT: Record<string, string> = {
   PENDING: "text-caution",
   APPROVED: "text-positive",
   REJECTED: "text-critical",
@@ -62,8 +62,10 @@ export function AdminPanel() {
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
-      <header className="mb-8">
-        <h1 className="text-[32px] font-bold leading-tight tracking-tight text-ink">Moderation</h1>
+      <header className="mb-8 pt-8">
+        <h1 className="text-[34px] font-bold leading-tight tracking-tight text-ink">
+          Moderation
+        </h1>
         <p className="mt-2 text-[15px] text-muted">
           Review organizer submissions before they appear publicly.
         </p>
@@ -74,9 +76,9 @@ export function AdminPanel() {
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
-            className={`-mb-px border-b-2 px-3 py-2 text-[14px] transition-colors ${
+            className={`-mb-px border-b-2 px-3 py-2 text-sm transition-colors ${
               tab === t.id
-                ? "border-accent text-ink"
+                ? "border-primary text-ink"
                 : "border-transparent text-muted hover:text-ink"
             }`}
           >
@@ -85,10 +87,10 @@ export function AdminPanel() {
         ))}
       </div>
 
-      {loading && <p className="py-10 text-center text-[14px] text-faint">Loading…</p>}
+      {loading && <p className="py-10 text-center text-sm text-faint">Loading…</p>}
 
       {!loading && events?.length === 0 && (
-        <p className="rounded-lg border border-dashed border-line px-6 py-14 text-center text-[14px] text-muted">
+        <p className="rounded-xl border border-dashed border-line px-6 py-16 text-center text-sm text-muted">
           Nothing here.
         </p>
       )}
@@ -134,21 +136,27 @@ function Row({
   onDelete: () => void;
 }) {
   return (
-    <div className="rounded-lg border border-line bg-surface p-4">
+    <div className="rounded-xl border border-line bg-surface/70 p-4 backdrop-blur-md">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="font-semibold text-ink">{event.title}</h3>
-            <span className={`text-[12px] uppercase tracking-[0.06em] ${STATUS_CLASS[event.status] ?? "text-faint"}`}>
+            <span
+              className={`text-[11px] uppercase tracking-[0.07em] ${
+                STATUS_TEXT[event.status] ?? "text-faint"
+              }`}
+            >
               {event.status}
             </span>
           </div>
           <p className="mt-1 text-[13px] text-faint">
             {EVENT_TYPE_LABELS[event.eventType] ?? event.eventType} ·{" "}
-            {formatDateRange(event.date, event.endDate)} · {event.isOnline ? "Online" : event.city ?? "TBA"} ·{" "}
-            {event.organizer}
+            {formatDateRange(event.date, event.endDate)} ·{" "}
+            {event.isOnline ? "Online" : event.city ?? "TBA"} · {event.organizer}
           </p>
-          {event.summary && <p className="mt-2 line-clamp-2 text-[13px] text-muted">{event.summary}</p>}
+          {event.summary && (
+            <p className="mt-2 line-clamp-2 text-[13px] text-muted">{event.summary}</p>
+          )}
         </div>
 
         <div className="flex shrink-0 gap-2">
@@ -176,7 +184,7 @@ function Action({
   return (
     <button
       onClick={onClick}
-      className={`rounded-md border border-line px-2.5 py-1 text-[13px] transition-colors hover:bg-raised ${
+      className={`rounded-lg border border-line bg-raised/60 px-2.5 py-1 text-[13px] transition-colors hover:border-line-hi ${
         danger ? "text-critical" : "text-muted"
       }`}
     >
@@ -219,16 +227,28 @@ function EditRow({ event, onDone }: { event: EventDTO; onDone: (changed: boolean
   }
 
   return (
-    <div className="rounded-lg border border-accent/40 bg-surface p-4">
+    <div className="rounded-xl border border-primary/40 bg-surface/70 p-4 backdrop-blur-md">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Labeled label="Title" wide>
-          <input className={input} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+          <input
+            className={input}
+            value={form.title}
+            onChange={(e) => setForm({ ...form, title: e.target.value })}
+          />
         </Labeled>
         <Labeled label="Organiser">
-          <input className={input} value={form.organizer} onChange={(e) => setForm({ ...form, organizer: e.target.value })} />
+          <input
+            className={input}
+            value={form.organizer}
+            onChange={(e) => setForm({ ...form, organizer: e.target.value })}
+          />
         </Labeled>
         <Labeled label="City">
-          <input className={input} value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
+          <input
+            className={input}
+            value={form.city}
+            onChange={(e) => setForm({ ...form, city: e.target.value })}
+          />
         </Labeled>
         <Labeled label="Starts">
           <input
@@ -239,7 +259,11 @@ function EditRow({ event, onDone }: { event: EventDTO; onDone: (changed: boolean
           />
         </Labeled>
         <Labeled label="Type">
-          <select className={input} value={form.eventType} onChange={(e) => setForm({ ...form, eventType: e.target.value })}>
+          <select
+            className={input}
+            value={form.eventType}
+            onChange={(e) => setForm({ ...form, eventType: e.target.value })}
+          >
             {EVENT_TYPES.map((t) => (
               <option key={t} value={t} className="bg-surface">
                 {EVENT_TYPE_LABELS[t]}
@@ -248,30 +272,64 @@ function EditRow({ event, onDone }: { event: EventDTO; onDone: (changed: boolean
           </select>
         </Labeled>
         <Labeled label="Status">
-          <select className={input} value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
-            <option value="PENDING" className="bg-surface">Pending</option>
-            <option value="APPROVED" className="bg-surface">Approved</option>
-            <option value="REJECTED" className="bg-surface">Rejected</option>
+          <select
+            className={input}
+            value={form.status}
+            onChange={(e) => setForm({ ...form, status: e.target.value })}
+          >
+            <option value="PENDING" className="bg-surface">
+              Pending
+            </option>
+            <option value="APPROVED" className="bg-surface">
+              Approved
+            </option>
+            <option value="REJECTED" className="bg-surface">
+              Rejected
+            </option>
           </select>
         </Labeled>
         <Labeled label="Link" wide>
-          <input className={input} value={form.link} onChange={(e) => setForm({ ...form, link: e.target.value })} />
+          <input
+            className={input}
+            value={form.link}
+            onChange={(e) => setForm({ ...form, link: e.target.value })}
+          />
         </Labeled>
         <Labeled label="Summary" wide>
-          <textarea rows={2} className={input} value={form.summary} onChange={(e) => setForm({ ...form, summary: e.target.value })} />
+          <textarea
+            rows={2}
+            className={input}
+            value={form.summary}
+            onChange={(e) => setForm({ ...form, summary: e.target.value })}
+          />
         </Labeled>
         <Labeled label="Description" wide>
-          <textarea rows={3} className={input} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+          <textarea
+            rows={3}
+            className={input}
+            value={form.description}
+            onChange={(e) => setForm({ ...form, description: e.target.value })}
+          />
         </Labeled>
       </div>
 
       <div className="mt-4 flex flex-wrap items-center gap-6">
         <label className="flex items-center gap-2 text-[13px] text-muted">
-          <input type="checkbox" checked={form.isOnline} onChange={(e) => setForm({ ...form, isOnline: e.target.checked })} className="h-3.5 w-3.5 rounded border-line accent-accent" />
+          <input
+            type="checkbox"
+            checked={form.isOnline}
+            onChange={(e) => setForm({ ...form, isOnline: e.target.checked })}
+            className="h-3.5 w-3.5 rounded border-line accent-primary"
+          />
           Online
         </label>
         <label className="flex items-center gap-2 text-[13px] text-muted">
-          <input type="checkbox" checked={form.beginnerFriendly} onChange={(e) => setForm({ ...form, beginnerFriendly: e.target.checked })} className="h-3.5 w-3.5 rounded border-line accent-accent" />
+          <input
+            type="checkbox"
+            checked={form.beginnerFriendly}
+            onChange={(e) => setForm({ ...form, beginnerFriendly: e.target.checked })}
+            className="h-3.5 w-3.5 rounded border-line accent-primary"
+          />
           Beginner friendly
         </label>
       </div>
@@ -280,13 +338,13 @@ function EditRow({ event, onDone }: { event: EventDTO; onDone: (changed: boolean
         <button
           onClick={save}
           disabled={saving}
-          className="rounded-md bg-ink px-3.5 py-1.5 text-[13px] font-medium text-bg transition-opacity hover:opacity-90 disabled:opacity-50"
+          className="glow-primary rounded-lg bg-gradient-to-r from-primary to-primary-2 px-3.5 py-1.5 text-[13px] font-semibold text-bg transition-all duration-200 hover:brightness-105 disabled:opacity-50"
         >
           {saving ? "Saving…" : "Save changes"}
         </button>
         <button
           onClick={() => onDone(false)}
-          className="rounded-md border border-line px-3.5 py-1.5 text-[13px] text-muted transition-colors hover:bg-raised"
+          className="rounded-lg border border-line bg-raised/60 px-3.5 py-1.5 text-[13px] text-muted transition-colors hover:border-line-hi"
         >
           Cancel
         </button>
@@ -313,7 +371,7 @@ function Labeled({
 }
 
 const input =
-  "w-full rounded-md border border-line bg-bg px-3 py-2 text-[14px] text-ink focus:border-accent focus:outline-none";
+  "w-full rounded-lg border border-line bg-raised/60 px-3 py-2 text-[14px] text-ink transition-colors focus:border-primary focus:outline-none";
 
 function toLocalInput(iso: string): string {
   const d = new Date(iso);

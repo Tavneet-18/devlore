@@ -7,19 +7,19 @@ import { EventCard } from "./EventCard";
 import { SkeletonCard } from "./SkeletonCard";
 
 const TIMEFRAMES = [
-  { id: "all", label: "Any time" },
+  { id: "all", label: "Upcoming" },
   { id: "week", label: "This week" },
-  { id: "month", label: "This month" },
+  { id: "month", label: "Next 30 days" },
 ] as const;
 
 const MODES = [
-  { id: "all", label: "Any format" },
-  { id: "online", label: "Online" },
+  { id: "all", label: "All" },
   { id: "offline", label: "In person" },
+  { id: "online", label: "Online" },
 ];
 
 const TYPE_OPTIONS: { id: string; label: string }[] = [
-  { id: "all", label: "All types" },
+  { id: "all", label: "All" },
   ...EVENT_TYPES.map((t) => ({ id: t, label: EVENT_TYPE_LABELS[t] ?? t })),
 ];
 
@@ -84,104 +84,119 @@ export function EventExplorer({ city, onCity }: { city: string; onCity: (c: stri
     return () => abortRef.current?.abort();
   }, [fetchEvents]);
 
+  const reset = () => {
+    setType("all");
+    setMode("all");
+    setTimeframe("all");
+    setBeginner(false);
+    setQ("");
+    onCity("");
+  };
+
   return (
     <section>
       {/* Toolbar */}
-      <div className="flex flex-col gap-3 border-y border-line py-4">
-        <div className="flex flex-wrap items-center gap-3">
-          <input
-            type="search"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Search events"
-            className="min-w-[200px] flex-1 rounded-md border border-line bg-surface px-3 py-2 text-[14px] text-ink placeholder:text-faint focus:border-accent focus:outline-none"
-          />
-          <label className="flex items-center gap-2 text-[13px] text-muted">
+      <div className="space-y-3.5 rounded-xl border border-line bg-surface/70 p-4 backdrop-blur-md">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="relative w-full lg:w-72">
+            <svg
+              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <circle cx="11" cy="11" r="7" />
+              <path d="m21 21-4.3-4.3" strokeLinecap="round" />
+            </svg>
             <input
-              type="checkbox"
-              checked={beginner}
-              onChange={(e) => setBeginner(e.target.checked)}
-              className="h-3.5 w-3.5 rounded border-line accent-accent"
+              type="search"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Search events, topics, organisers"
+              className="w-full rounded-lg border border-line bg-raised/60 py-2 pl-9 pr-3 text-sm text-ink placeholder:text-faint transition-colors focus:border-primary focus:outline-none"
             />
-            Beginner friendly
-          </label>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <Segmented options={TYPE_OPTIONS} value={type} onChange={setType} />
+            <Segmented options={MODES} value={mode} onChange={setMode} />
+            <Segmented
+              options={TIMEFRAMES as readonly { id: string; label: string }[]}
+              value={timeframe}
+              onChange={setTimeframe as (v: string) => void}
+            />
+          </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
-          <Segmented label="Type" options={TYPE_OPTIONS} value={type} onChange={setType} />
-          <Segmented label="Format" options={MODES} value={mode} onChange={setMode} />
-          <Segmented
-            label="When"
-            options={TIMEFRAMES as readonly { id: string; label: string }[]}
-            value={timeframe}
-            onChange={setTimeframe as (v: string) => void}
-          />
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-[13px] text-faint">City</span>
+        <div className="no-scrollbar flex items-center gap-1.5 overflow-x-auto pt-1 text-xs whitespace-nowrap">
           <button
             onClick={() => onCity("")}
-            className={`rounded-md px-2 py-1 text-[13px] transition-colors ${
-              !city ? "bg-raised text-ink" : "text-muted hover:text-ink"
+            className={`rounded-md border px-2.5 py-1 text-xs font-medium transition-colors ${
+              !city
+                ? "border-primary/30 bg-primary/15 text-white"
+                : "border-transparent text-muted hover:text-ink"
             }`}
           >
-            All
+            All cities
           </button>
           {CITIES.map((c) => (
             <button
               key={c}
               onClick={() => onCity(c)}
-              className={`rounded-md px-2 py-1 text-[13px] transition-colors ${
-                city === c ? "bg-raised text-ink" : "text-muted hover:text-ink"
+              className={`rounded-md border px-2.5 py-1 text-xs transition-colors ${
+                city === c
+                  ? "border-primary/30 bg-primary/15 text-white"
+                  : "border-transparent text-muted hover:text-ink"
               }`}
             >
               {c}
             </button>
           ))}
+          <label className="ml-2 flex items-center gap-2 text-xs text-muted">
+            <input
+              type="checkbox"
+              checked={beginner}
+              onChange={(e) => setBeginner(e.target.checked)}
+              className="h-3.5 w-3.5 rounded border-line accent-primary"
+            />
+            Beginner friendly
+          </label>
         </div>
       </div>
 
       {/* Results */}
-      <div className="py-4">
-        {error && <p className="text-[14px] text-critical">{error}</p>}
+      <div className="mt-5 flex items-center justify-between text-[13px]">
+        <span className="text-faint">
+          {count} {count === 1 ? "event" : "events"}
+          {loading ? "…" : ""}
+        </span>
+      </div>
 
-        {!error && !loading && events !== null && (
-          <p className="mb-4 text-[13px] text-faint">
-            {count} {count === 1 ? "event" : "events"}
-            {loading ? "…" : ""}
-          </p>
-        )}
+      <div className="mt-5">
+        {error && <p className="text-sm text-critical">{error}</p>}
 
-        {!error && events === null && (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {events === null && (
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
             {Array.from({ length: 6 }).map((_, i) => (
               <SkeletonCard key={i} />
             ))}
           </div>
         )}
 
-        {!error && events !== null && events.length === 0 && (
-          <div className="rounded-lg border border-dashed border-line px-6 py-16 text-center">
-            <p className="text-[14px] text-muted">No events match these filters.</p>
-            <button
-              onClick={() => {
-                setType("all");
-                setMode("all");
-                setTimeframe("all");
-                setBeginner(false);
-                setQ("");
-                onCity("");
-              }}
-              className="mt-3 text-[13px] text-accent-soft hover:underline"
-            >
+        {events !== null && events.length === 0 && (
+          <div className="rounded-xl border border-dashed border-line px-6 py-20 text-center">
+            <p className="text-sm text-muted">No events match these filters.</p>
+            <button onClick={reset} className="mt-3 text-[13px] text-primary hover:underline">
               Clear filters
             </button>
           </div>
         )}
 
-        {!error && events !== null && events.length > 0 && (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {events !== null && events.length > 0 && (
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
             {events.map((event, i) => (
               <EventCard key={event.id} event={event} index={i} />
             ))}
@@ -193,32 +208,29 @@ export function EventExplorer({ city, onCity }: { city: string; onCity: (c: stri
 }
 
 function Segmented({
-  label,
   options,
   value,
   onChange,
 }: {
-  label: string;
   options: readonly { id: string; label: string }[];
   value: string;
   onChange: (v: string) => void;
 }) {
   return (
-    <div className="flex items-center gap-2">
-      <span className="text-[13px] text-faint">{label}</span>
-      <div className="flex items-center gap-0.5 rounded-md border border-line p-0.5">
-        {options.map((opt) => (
-          <button
-            key={opt.id}
-            onClick={() => onChange(opt.id)}
-            className={`rounded px-2.5 py-1 text-[13px] transition-colors duration-150 ${
-              value === opt.id ? "bg-raised text-ink" : "text-muted hover:text-ink"
-            }`}
-          >
-            {opt.label}
-          </button>
-        ))}
-      </div>
+    <div className="flex items-center gap-1 rounded-lg border border-line bg-raised/80 p-1 text-xs font-medium">
+      {options.map((opt) => (
+        <button
+          key={opt.id}
+          onClick={() => onChange(opt.id)}
+          className={`rounded px-2.5 py-1 transition-all ${
+            value === opt.id
+              ? "border border-primary/40 bg-primary/20 text-white"
+              : "border border-transparent text-muted hover:text-white"
+          }`}
+        >
+          {opt.label}
+        </button>
+      ))}
     </div>
   );
 }

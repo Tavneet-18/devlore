@@ -1,43 +1,52 @@
 @import "tailwindcss";
 
 /*
- * Minimal dark theme.
+ * Premium dark theme (Stitch: "Devlore Premium", assets/14198478929046043622).
  *
- * Rules that keep this from drifting back into "AI generated" territory:
- *   - one accent colour (violet), used only for state, never decoration
- *   - no glows, no aurora blobs, no grain, no gradient buttons
- *   - colour is never the only signal; pair it with text or an icon
- *   - borders do the structural work instead of shadows
+ * The goal is depth without noise: a blue-tinted near-black base, a violet
+ * accent that only ever appears where something is interactive, and colour
+ * per event type used as a quiet signal rather than decoration.
  */
 
 @theme inline {
-  --color-bg: #0a0a0c;
-  --color-surface: #111114;
-  --color-raised: #17171b;
-  --color-line: #232329;
-  --color-ink: #ededf0;
-  --color-muted: #8b8b96;
-  --color-faint: #5c5c66;
-  --color-accent: #7c5cff;
-  --color-accent-soft: #a08fff;
-  --color-positive: #4ade80;
+  --color-bg: #08080d;
+  --color-surface: #101018;
+  --color-raised: #161622;
+  --color-line: #22222e;
+  --color-line-hi: #33334a;
+  --color-ink: #f2f2f7;
+  --color-muted: #9a9ab0;
+  --color-faint: #6b6b80;
+
+  --color-primary: #6d5df6;
+  --color-primary-2: #3b9dff;
+  --color-cyan: #22d3ee;
+
+  /* Event type accents */
+  --color-t-hackathon: #a78bfa;
+  --color-t-meetup: #2dd4bf;
+  --color-t-workshop: #fbbf24;
+  --color-t-webinar: #fb7185;
+  --color-t-conference: #60a5fa;
+  --color-t-career: #c084fc;
+
+  --color-positive: #34d399;
   --color-caution: #fbbf24;
   --color-critical: #f87171;
 
   --font-sans: var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --ease-premium: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 :root {
   color-scheme: dark;
 }
 
-* {
-  border-color: var(--color-line);
-}
-
 html {
   -webkit-text-size-adjust: 100%;
+  scroll-behavior: smooth;
 }
 
 body {
@@ -45,53 +54,94 @@ body {
   color: var(--color-ink);
   font-family: var(--font-sans);
   font-feature-settings: "cv02", "cv03", "cv04";
+  letter-spacing: -0.011em;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  letter-spacing: -0.011em;
+  overflow-x: hidden;
 }
 
 ::selection {
-  background: var(--color-accent);
+  background: rgb(109 93 246 / 0.32);
   color: #fff;
 }
 
 :focus-visible {
-  outline: 2px solid var(--color-accent);
+  outline: 2px solid var(--color-primary);
   outline-offset: 2px;
-  border-radius: 4px;
+  border-radius: 6px;
 }
 
-/* Scrollbars: present, but quiet. */
+/* Gradient text — reserved for the wordmark and one hero word. */
+.text-gradient {
+  background-image: linear-gradient(
+    to right,
+    var(--color-primary),
+    var(--color-primary-2)
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.text-gradient-soft {
+  background-image: linear-gradient(to right, #f2f2f7, #c4c4d8);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* The single allowed glow: the primary call to action. */
+.glow-primary {
+  box-shadow: 0 0 20px -3px rgb(109 93 246 / 0.45);
+}
+
+/* Card hover depth, tinted with the accent rather than black. */
+.glow-card {
+  box-shadow: 0 8px 30px rgb(109 93 246 / 0.18);
+}
+
 * {
   scrollbar-width: thin;
-  scrollbar-color: #2a2a31 transparent;
+  scrollbar-color: #22222e transparent;
 }
 ::-webkit-scrollbar {
-  height: 8px;
-  width: 8px;
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-bg);
 }
 ::-webkit-scrollbar-thumb {
-  background: #2a2a31;
-  border-radius: 999px;
+  background: #22222e;
+  border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #3a3a43;
+  background: #33334a;
 }
 
-/*
- * Loading placeholder. A single quiet sweep — no colour cycling.
- */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 .skeleton {
   position: relative;
   overflow: hidden;
-  background: #16161a;
+  background: #161622;
 }
 .skeleton::after {
   content: "";
   position: absolute;
   inset: 0;
   transform: translateX(-100%);
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.04), transparent);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgb(109 93 246 / 0.12),
+    transparent
+  );
   animation: devlore-shimmer 1.6s ease-in-out infinite;
 }
 @keyframes devlore-shimmer {
@@ -105,7 +155,6 @@ body {
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
 }

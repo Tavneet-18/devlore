@@ -9,33 +9,35 @@ const NAV = [
 
 export function Header() {
   return (
-    <header className="sticky top-0 z-50 border-b border-line bg-bg/85 backdrop-blur-md">
-      <div className="mx-auto flex h-14 max-w-6xl items-center gap-6 px-4 sm:px-6">
-        <Link href="/" className="flex items-center gap-2 text-[15px] font-semibold tracking-tight">
-          <span className="flex h-6 w-6 items-center justify-center rounded-md bg-ink text-[11px] font-bold text-bg">
+    <header className="sticky top-0 z-50 h-[60px] w-full border-b border-line bg-bg/80 backdrop-blur-xl">
+      <div className="mx-auto flex h-full max-w-7xl items-center justify-between px-4 sm:px-6">
+        <Link href="/" className="group flex items-center gap-3">
+          <span className="flex h-[30px] w-[30px] shrink-0 select-none items-center justify-center rounded-lg bg-gradient-to-br from-primary to-primary-2 text-base font-bold text-bg">
             D
           </span>
-          Devlore
+          <span className="text-gradient-soft select-none text-base font-bold tracking-tight">
+            Devlore
+          </span>
         </Link>
 
-        <nav className="flex items-center gap-1 text-sm">
+        <nav className="hidden h-full items-center gap-7 text-[14px] font-medium md:flex">
           {NAV.map((item) => (
             <Link
               key={item.href}
               href={item.href}
-              className="rounded-md px-2.5 py-1.5 text-muted transition-colors hover:bg-raised hover:text-ink"
+              className="relative flex h-full items-center text-muted transition-colors duration-200 hover:text-ink"
             >
               {item.label}
             </Link>
           ))}
         </nav>
 
-        <div className="ml-auto">
+        <div className="flex items-center gap-4">
           <Link
             href="/list"
-            className="rounded-lg bg-ink px-3.5 py-1.5 text-[13px] font-medium text-bg transition-opacity hover:opacity-90"
+            className="glow-primary inline-flex items-center justify-center rounded-lg bg-gradient-to-r from-primary to-primary-2 px-4 py-2 text-sm font-semibold text-bg transition-all duration-200 hover:brightness-105 active:scale-[0.98]"
           >
-            List an event
+            Post Event
           </Link>
         </div>
       </div>

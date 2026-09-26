@@ -53,11 +53,9 @@ export function EventForm() {
         summary: string;
         tags: string[];
         isOnline: boolean;
-        beginnerFriendly: boolean;
       };
       setAiSummary(e.summary);
       setAiTags(e.tags);
-      set("isOnline", e.isOnline);
       setOutcome({ ok: true, message: "Draft summary generated. Review it, then submit." });
     } catch (err) {
       setOutcome({ ok: false, message: (err as Error).message });
@@ -90,7 +88,7 @@ export function EventForm() {
   }
 
   return (
-    <form onSubmit={submit} className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+    <form onSubmit={submit} className="grid grid-cols-1 gap-5 sm:grid-cols-2">
       <Field label="Title" className="sm:col-span-2">
         <input
           required
@@ -167,19 +165,26 @@ export function EventForm() {
       </Field>
 
       <div className="flex flex-wrap gap-6 sm:col-span-2">
-        <Check label="Online / remote allowed" checked={form.isOnline} onChange={(v) => set("isOnline", v)} />
-        <Check label="Beginner friendly" checked={form.beginnerFriendly} onChange={(v) => set("beginnerFriendly", v)} />
+        <Check
+          label="Online / remote allowed"
+          checked={form.isOnline}
+          onChange={(v) => set("isOnline", v)}
+        />
+        <Check
+          label="Beginner friendly"
+          checked={form.beginnerFriendly}
+          onChange={(v) => set("beginnerFriendly", v)}
+        />
       </div>
 
-      {/* Optional AI assist */}
-      <div className="rounded-lg border border-line p-4 sm:col-span-2">
+      <div className="rounded-xl border border-line bg-surface/70 p-4 sm:col-span-2 backdrop-blur-md">
         <div className="flex items-center justify-between gap-4">
           <p className="text-[13px] text-muted">Generate a draft summary and tags</p>
           <button
             type="button"
             onClick={enhance}
             disabled={enhancing || (!form.title && !form.description)}
-            className="rounded-md border border-line px-3 py-1.5 text-[13px] text-ink transition-colors hover:bg-raised disabled:opacity-40"
+            className="rounded-lg border border-line bg-raised/60 px-3 py-1.5 text-[13px] text-ink transition-colors hover:border-line-hi disabled:opacity-40"
           >
             {enhancing ? "Generating…" : "Generate"}
           </button>
@@ -194,8 +199,8 @@ export function EventForm() {
 
       {outcome && (
         <p
-          className={`rounded-md px-4 py-3 text-[14px] sm:col-span-2 ${
-            outcome.ok ? "bg-surface text-positive" : "bg-surface text-critical"
+          className={`rounded-lg border border-line bg-surface/70 px-4 py-3 text-[14px] sm:col-span-2 ${
+            outcome.ok ? "text-positive" : "text-critical"
           }`}
         >
           {outcome.message}
@@ -206,7 +211,7 @@ export function EventForm() {
         <button
           type="submit"
           disabled={submitting}
-          className="w-full rounded-md bg-ink px-4 py-3 text-[14px] font-medium text-bg transition-opacity hover:opacity-90 disabled:opacity-50"
+          className="glow-primary w-full rounded-lg bg-gradient-to-r from-primary to-primary-2 px-4 py-3 text-sm font-semibold text-bg transition-all duration-200 hover:brightness-105 disabled:opacity-50"
         >
           {submitting ? "Submitting…" : "Submit for review"}
         </button>
@@ -253,7 +258,7 @@ function Check({
         type="checkbox"
         checked={checked}
         onChange={(e) => onChange(e.target.checked)}
-        className="h-3.5 w-3.5 rounded border-line accent-accent"
+        className="h-3.5 w-3.5 rounded border-line accent-primary"
       />
       {label}
     </label>
@@ -261,4 +266,4 @@ function Check({
 }
 
 const input =
-  "w-full rounded-md border border-line bg-surface px-3 py-2 text-[14px] text-ink placeholder:text-faint focus:border-accent focus:outline-none";
+  "w-full rounded-lg border border-line bg-raised/60 px-3 py-2 text-[14px] text-ink placeholder:text-faint transition-colors focus:border-primary focus:outline-none";

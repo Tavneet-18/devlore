@@ -16,26 +16,30 @@ export default async function BookmarksPage() {
       })
     : [];
 
-  const events = bookmarks.filter((b) => b.event).map((b) => toEventDTO(b.event, new Set([b.event.id])));
+  const events = bookmarks
+    .filter((b) => b.event)
+    .map((b) => toEventDTO(b.event, new Set([b.event.id])));
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
-      <header className="mb-8">
-        <h1 className="text-[32px] font-bold leading-tight tracking-tight text-ink">Saved events</h1>
+    <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
+      <header className="mb-8 pt-8">
+        <h1 className="text-[34px] font-bold leading-tight tracking-tight text-ink">
+          Saved <span className="text-gradient">events</span>
+        </h1>
         <p className="mt-2 text-[15px] text-muted">
           Bookmarks are stored in this browser only and expire after 30 days.
         </p>
       </header>
 
       {events.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-line px-6 py-16 text-center">
-          <p className="text-[14px] text-muted">You have not saved any events yet.</p>
-          <Link href="/" className="mt-3 inline-block text-[13px] text-accent-soft hover:underline">
-            Browse events
+        <div className="rounded-xl border border-dashed border-line px-6 py-20 text-center">
+          <p className="text-sm text-muted">You have not saved any events yet.</p>
+          <Link href="/" className="mt-3 inline-block text-[13px] font-semibold text-primary hover:underline">
+            Browse events →
           </Link>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
           {events.map((e, i) => (
             <EventCard key={e.id} event={e} index={i} />
           ))}

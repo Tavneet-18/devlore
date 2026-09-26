@@ -36,8 +36,8 @@ export function BookmarkButton({ eventId, initialBookmarked = false }: Props) {
       aria-pressed={bookmarked}
       aria-label={bookmarked ? "Remove from saved" : "Save event"}
       title={bookmarked ? "Saved" : "Save"}
-      className={`-mr-1 -mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-faint transition-colors duration-150 hover:bg-raised hover:text-ink disabled:opacity-50 ${
-        bookmarked ? "text-accent-soft" : ""
+      className={`flex h-8 w-8 items-center justify-center rounded-lg text-faint transition-colors duration-200 hover:bg-white/5 hover:text-ink disabled:opacity-50 ${
+        bookmarked ? "text-primary" : ""
       }`}
     >
       <svg

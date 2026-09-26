@@ -3,19 +3,31 @@ import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { parseTags, toEventDTO } from "@/lib/events";
 import { similarEvents } from "@/lib/recommendations";
-import {
-  countdown,
-  eventPhase,
-  eventTiming,
-  formatDay,
-  referenceDate,
-} from "@/lib/format";
+import { countdown, eventPhase, eventTiming, formatDay, referenceDate } from "@/lib/format";
 import { EVENT_TYPE_LABELS } from "@/lib/constants";
 import { BookmarkButton } from "@/components/BookmarkButton";
 import { EventCard, EventPoster } from "@/components/EventCard";
 import { getViewerId } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
+
+const TYPE_TEXT: Record<string, string> = {
+  hackathon: "text-t-hackathon",
+  meetup: "text-t-meetup",
+  workshop: "text-t-workshop",
+  webinar: "text-t-webinar",
+  conference: "text-t-conference",
+  "career-fair": "text-t-career",
+};
+
+const TYPE_DOT: Record<string, string> = {
+  hackathon: "bg-t-hackathon",
+  meetup: "bg-t-meetup",
+  workshop: "bg-t-workshop",
+  webinar: "bg-t-webinar",
+  conference: "bg-t-conference",
+  "career-fair": "bg-t-career",
+};
 
 export default async function EventDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -36,15 +48,16 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
   const target = referenceDate(dto.date, dto.endDate);
   const location = dto.isOnline ? "Online" : (dto.city ?? "Location TBA");
   const typeLabel = EVENT_TYPE_LABELS[dto.eventType] ?? "Event";
+  const dot = TYPE_DOT[dto.eventType] ?? "bg-faint";
+  const accentText = TYPE_TEXT[dto.eventType] ?? "text-muted";
   const tags = parseTags(event);
   const closed = phase === "ended";
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
-      {/* Breadcrumb */}
+    <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
       <div className="mb-8 flex items-center gap-3">
         <nav className="min-w-0 flex-1 text-[13px] text-faint">
-          <Link href="/" className="hover:text-ink">
+          <Link href="/" className="transition-colors hover:text-ink">
             Discover
           </Link>
           <span className="mx-2">/</span>
@@ -53,14 +66,18 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
         <BookmarkButton eventId={dto.id} initialBookmarked={!!bookmark} />
       </div>
 
-      <div className="grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-        {/* Main */}
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <div>
-          <h1 className="text-[32px] font-bold leading-tight tracking-tight text-ink">
+          <div className="flex items-center gap-2">
+            <span className={`h-1.5 w-1.5 rounded-full ${dot}`} aria-hidden />
+            <span className={`text-xs font-medium ${accentText}`}>{typeLabel}</span>
+          </div>
+
+          <h1 className="mt-3 text-[34px] font-bold leading-tight tracking-tight text-ink">
             {dto.title}
           </h1>
           <p className="mt-2 text-[15px] text-muted">
-            {location} · {typeLabel} · by {dto.organizer} ·{" "}
+            {location} · by {dto.organizer} ·{" "}
             {dto.viewCount.toLocaleString()} {dto.viewCount === 1 ? "view" : "views"}
           </p>
 
@@ -88,22 +105,28 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
           )}
 
           {tags.length > 0 && (
-            <p className="mt-6 text-[13px] text-faint">{tags.join(", ")}</p>
+            <p className="mt-6 text-[12px] text-faint">{tags.join(", ")}</p>
           )}
 
-          {/* Facts */}
-          <dl className="mt-10 grid grid-cols-1 gap-px overflow-hidden rounded-lg border border-line bg-line sm:grid-cols-3">
+          <dl className="mt-10 grid grid-cols-1 gap-px overflow-hidden rounded-xl border border-line bg-line sm:grid-cols-3">
             <Fact label="Starts" value={formatDay(dto.date)} />
             <Fact label="Ends" value={dto.endDate ? formatDay(dto.endDate) : "—"} />
             <Fact label="Status" value={timing} />
           </dl>
         </div>
 
-        {/* Sidebar */}
         <aside className="lg:sticky lg:top-20 lg:self-start">
-          <div className="rounded-lg border border-line bg-surface p-5">
+          <div className="relative overflow-hidden rounded-xl border border-line bg-surface/70 p-5 backdrop-blur-md">
+            <div
+              aria-hidden
+              className="pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full bg-primary opacity-20 blur-3xl"
+            />
             <p className="text-[13px] text-muted">
-              {closed ? "This event has closed" : phase === "ongoing" ? "Registration closes in" : "Starts in"}
+              {closed
+                ? "This event has closed"
+                : phase === "ongoing"
+                  ? "Registration closes in"
+                  : "Starts in"}
             </p>
             <p className="mt-1 font-mono text-[24px] font-semibold tracking-tight text-ink">
               {countdown(target)}
@@ -127,30 +150,27 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
                 href={dto.link}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mt-6 block rounded-md bg-ink px-4 py-2.5 text-center text-[14px] font-medium text-bg transition-opacity hover:opacity-90"
+                className="glow-primary mt-6 block rounded-lg bg-gradient-to-r from-primary to-primary-2 px-4 py-2.5 text-center text-sm font-semibold text-bg transition-all duration-200 hover:brightness-105"
               >
                 Register on {dto.source}
               </a>
             ) : (
-              <p className="mt-6 rounded-md border border-line px-4 py-2.5 text-center text-[14px] text-faint">
+              <p className="mt-6 rounded-lg border border-line px-4 py-2.5 text-center text-sm text-faint">
                 No registration link provided
               </p>
             )}
 
             <p className="mt-4 text-[12px] leading-relaxed text-faint">
-              Listing provided by {dto.source}. Verify details with the organiser before
-              travelling or paying.
+              Verify details with the organiser before travelling or paying.
             </p>
           </div>
         </aside>
       </div>
 
       {similar.length > 0 && (
-        <section className="mt-16 border-t border-line pt-8">
-          <h2 className="mb-5 text-[18px] font-semibold tracking-tight text-ink">
-            Similar events
-          </h2>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <section className="mt-20 border-t border-line pt-10">
+          <h2 className="mb-5 text-[20px] font-semibold tracking-tight text-ink">Similar events</h2>
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
             {similar.map((e, i) => (
               <EventCard key={e.id} event={e} index={i} />
             ))}
@@ -164,7 +184,7 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
 function Fact({ label, value }: { label: string; value: string }) {
   return (
     <div className="bg-surface p-4">
-      <dt className="text-[12px] uppercase tracking-[0.06em] text-faint">{label}</dt>
+      <dt className="text-[11px] uppercase tracking-[0.07em] text-faint">{label}</dt>
       <dd className="mt-1 text-[15px] text-ink">{value}</dd>
     </div>
   );
