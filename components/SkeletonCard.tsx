@@ -1,16 +1,16 @@
 export function SkeletonCard() {
   return (
-    <div className="flex overflow-hidden rounded-2xl border border-line bg-surface/60">
-      <div className="skeleton hidden w-[168px] shrink-0 sm:block" />
-      <div className="flex-1 p-5">
-        <div className="skeleton mb-3 h-2.5 w-24 rounded" />
-        <div className="skeleton mb-2 h-5 w-4/5 rounded" />
-        <div className="skeleton mb-1.5 h-3 w-full rounded" />
-        <div className="skeleton h-3 w-2/3 rounded" />
-        <div className="mt-4 flex items-center gap-3">
-          <div className="skeleton h-2.5 w-28 rounded" />
-          <div className="skeleton h-2.5 w-20 rounded" />
-        </div>
+    <div className="grid grid-cols-[2.25rem_96px_minmax(0,1fr)_auto] items-center gap-5 border-t border-line py-6">
+      <div className="skeleton h-3 w-5 rounded" />
+      <div className="skeleton h-24 w-24 rounded-md" />
+      <div className="space-y-2">
+        <div className="skeleton h-2.5 w-16 rounded" />
+        <div className="skeleton h-5 w-3/4 rounded" />
+        <div className="skeleton h-3 w-1/2 rounded" />
+      </div>
+      <div className="hidden space-y-1.5 sm:block">
+        <div className="skeleton h-3 w-24 rounded" />
+        <div className="skeleton h-3 w-20 rounded" />
       </div>
     </div>
   );

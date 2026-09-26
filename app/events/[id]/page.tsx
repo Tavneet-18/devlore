@@ -6,7 +6,7 @@ import { similarEvents } from "@/lib/recommendations";
 import { countdown, eventPhase, eventTiming, formatDay, referenceDate } from "@/lib/format";
 import { EVENT_TYPE_LABELS } from "@/lib/constants";
 import { BookmarkButton } from "@/components/BookmarkButton";
-import { EventCard, EventPoster, accentFor, accentTextFor } from "@/components/EventCard";
+import { IndexRow, EventPoster, accentFor, accentTextFor } from "@/components/EventCard";
 import { getViewerId } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
@@ -152,14 +152,15 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
       </div>
 
       {similar.length > 0 && (
-        <section className="mt-20 border-t border-line pt-10">
-          <h2 className="mb-5 text-[20px] font-semibold tracking-tight text-ink">
-            Similar events
+        <section className="mt-24">
+          <h2 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">
+            Also worth a look
           </h2>
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <div className="mt-4">
             {similar.map((e, i) => (
-              <EventCard key={e.id} event={e} index={i} />
+              <IndexRow key={e.id} event={e} index={i + 1} />
             ))}
+            <div className="border-t border-line" />
           </div>
         </section>
       )}

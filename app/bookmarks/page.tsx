@@ -2,7 +2,7 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { toEventDTO } from "@/lib/events";
 import { getViewerId } from "@/lib/session";
-import { EventCard } from "@/components/EventCard";
+import { IndexRow } from "@/components/EventCard";
 
 export const dynamic = "force-dynamic";
 
@@ -32,17 +32,18 @@ export default async function BookmarksPage() {
       </header>
 
       {events.length === 0 ? (
-        <div className="mt-10 rounded-2xl border border-dashed border-line px-6 py-24 text-center">
+        <div className="mt-10 border-y border-line py-24 text-center">
           <p className="text-sm text-muted">You have not saved any events yet.</p>
           <Link href="/" className="mt-3 inline-block text-[13px] font-semibold text-primary hover:underline">
             Browse events →
           </Link>
         </div>
       ) : (
-        <div className="mt-8 grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <div className="mt-6">
           {events.map((e, i) => (
-            <EventCard key={e.id} event={e} index={i} />
+            <IndexRow key={e.id} event={e} index={i + 1} />
           ))}
+          <div className="border-t border-line" />
         </div>
       )}
     </div>

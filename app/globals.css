@@ -9,18 +9,20 @@
  */
 
 @theme inline {
-  --color-bg: #08080d;
-  --color-surface: #101018;
-  --color-raised: #161622;
-  --color-line: #22222e;
-  --color-line-hi: #33334a;
-  --color-ink: #f2f2f7;
-  --color-muted: #9a9ab0;
-  --color-faint: #6b6b80;
+  --color-bg: #07070c;
+  --color-surface: #0e0e16;
+  --color-raised: #15151f;
+  --color-line: #1e1e2a;
+  --color-line-hi: #2c2c3c;
+  --color-ink: #f4f4f8;
+  --color-muted: #9494a8;
+  --color-faint: #5f5f70;
 
-  --color-primary: #6d5df6;
-  --color-primary-2: #3b9dff;
+  --color-primary: #7c6bff;
+  --color-primary-2: #46a6ff;
   --color-cyan: #22d3ee;
+  --color-closing: #ff8a5b;
+  --color-calm: #4ade80;
 
   /* Event type accents */
   --color-t-hackathon: #a78bfa;
@@ -92,7 +94,7 @@ body {
 
 /* The single allowed glow: the primary call to action. */
 .glow-primary {
-  box-shadow: 0 0 20px -3px rgb(109 93 246 / 0.45);
+  box-shadow: 0 0 20px -3px rgb(124 107 255 / 0.45);
 }
 
 /* Card hover depth, tinted with the accent rather than black. */
