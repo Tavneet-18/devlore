@@ -1,4 +1,8 @@
 @import "tailwindcss";
+/*
+ ---break---
+ */
+@custom-variant dark (&:is(.dark *));
 
 /*
  * Premium dark theme (Stitch: "Devlore Premium", assets/14198478929046043622).
@@ -37,9 +41,30 @@
   --color-critical: #f87171;
 
   --font-sans: var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-newsreader), ui-serif, Georgia, serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
 
   --ease-premium: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  --animate-marquee: marquee var(--duration) infinite linear;
+
+  --animate-marquee-vertical: marquee-vertical var(--duration) linear infinite;
+  @keyframes marquee {
+  from {
+    transform: translateX(0);
+    }
+  to {
+    transform: translateX(calc(-100% - var(--gap)));
+    }
+  }
+  @keyframes marquee-vertical {
+  from {
+    transform: translateY(0);
+    }
+  to {
+    transform: translateY(calc(-100% - var(--gap)));
+    }
+  }
 }
 
 /*
@@ -172,6 +197,28 @@ body {
   display: none;
 }
 
+/*
+ * Print texture. A 22px dot grid is the cheapest way to stop a large dark
+ * surface reading as flat vinyl — it is the paper stock showing through.
+ * Always masked; an unmasked grid immediately reads as a background image.
+ */
+.dot-grid {
+  background-image: radial-gradient(circle, var(--color-line) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+/* The deadline ticker fades out at both edges so it never hard-clips. */
+.ticker-mask {
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 6%,
+    #000 94%,
+    transparent
+  );
+  mask-image: linear-gradient(to right, transparent, #000 6%, #000 94%, transparent);
+}
+
 .skeleton {
   position: relative;
   overflow: hidden;
@@ -202,5 +249,13 @@ body {
   *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
+  }
+
+  /* The crawl is the only continuous motion here. Snapping it to its final
+     frame would park a single copy off-screen behind the mask, so it is
+     stopped outright and the first group is shown as a static row. */
+  .animate-marquee,
+  .animate-marquee-vertical {
+    animation: none !important;
   }
 }

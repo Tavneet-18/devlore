@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
-import { Space_Grotesk } from "next/font/google";
+import { Newsreader, Space_Grotesk } from "next/font/google";
 import "./globals.css";
-import { Header } from "@/components/Header";
+import { Nameplate } from "@/components/Nameplate";
 import { Footer } from "@/components/Footer";
+import { dateLine, issueNumber } from "@/lib/issue";
 
 const spaceGrotesk = Space_Grotesk({
   variable: "--font-space-grotesk",
@@ -11,15 +12,39 @@ const spaceGrotesk = Space_Grotesk({
   display: "swap",
 });
 
+/**
+ * Display type is a high-contrast serif, functional type is a grotesk.
+ *
+ * Setting everything in one sans-serif is the single clearest tell of a
+ * generated design, so the two roles are split deliberately. Newsreader was
+ * drawn for news setting and carries real stroke contrast plus a true italic,
+ * which is what lets a single word inside a headline carry emphasis.
+ */
+const newsreader = Newsreader({
+  variable: "--font-newsreader",
+  subsets: ["latin"],
+  style: ["normal", "italic"],
+  display: "swap",
+});
+
+/**
+ * The nameplate carries today's date and issue number, so the shell has to be
+ * rendered per request. Without this the layout is prerendered at build time
+ * and the issue marker silently freezes on whatever day the build ran.
+ */
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Devlore — Hackathons & tech events",
   description:
-    "A curated archive of hackathons, technical conferences, and engineering gatherings.",
+    "A dated index of hackathons, technical conferences, and engineering gatherings.",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const now = new Date();
+
   return (
-    <html lang="en" className={spaceGrotesk.variable}>
+    <html lang="en" className={`${spaceGrotesk.variable} ${newsreader.variable}`}>
       <body className="relative min-h-full bg-bg text-ink">
         {/* Ambient atmosphere. Felt, not seen. */}
         <div aria-hidden className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
@@ -28,7 +53,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         </div>
 
         <div className="relative z-10 flex min-h-full flex-col">
-          <Header />
+          <Nameplate dateLine={dateLine(now)} issue={issueNumber(now)} />
           <main className="flex-1">{children}</main>
           <Footer />
         </div>

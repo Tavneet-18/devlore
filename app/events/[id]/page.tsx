@@ -36,37 +36,37 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
   const closed = phase === "ended";
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
-      <div className="mb-8 flex items-center gap-3">
-        <nav className="min-w-0 flex-1 text-[13px] text-faint">
+    <div className="mx-auto max-w-6xl px-6 py-10 sm:px-10">
+      <div className="mb-10 flex items-center gap-3 border-b border-line pb-5">
+        <nav className="min-w-0 flex-1 text-[11px] uppercase tracking-[0.12em] text-faint">
           <Link href="/" className="transition-colors hover:text-ink">
             Discover
           </Link>
-          <span className="mx-2">/</span>
-          <span className="truncate text-muted">{dto.title}</span>
+          <span className="mx-2 text-line-hi">/</span>
+          <span className="truncate normal-case tracking-normal text-muted">{dto.title}</span>
         </nav>
         <BookmarkButton eventId={dto.id} initialBookmarked={!!bookmark} />
       </div>
 
-      <div className="grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,1.9fr)_minmax(0,1fr)]">
+      <div className="grid grid-cols-1 gap-12 lg:grid-cols-[minmax(0,1.9fr)_minmax(0,1fr)]">
         <div>
           <div className="flex items-center gap-2">
             <span className={`h-1.5 w-1.5 rounded-full ${dot}`} aria-hidden />
-            <span className={`text-[11px] font-semibold uppercase tracking-[0.08em] ${accentText}`}>
+            <span className={`text-[11px] font-semibold uppercase tracking-[0.14em] ${accentText}`}>
               {typeLabel}
             </span>
           </div>
 
-          <h1 className="mt-3 text-[36px] font-bold leading-[1.1] tracking-tight text-ink sm:text-[44px]">
+          <h1 className="mt-4 font-serif text-[clamp(2.1rem,5vw,3.2rem)] font-normal leading-[1.05] tracking-[-0.015em] text-ink">
             {dto.title}
           </h1>
-          <p className="mt-3 text-[15px] text-muted">
+          <p className="mt-4 text-[13px] text-faint">
             {location} · by {dto.organizer} ·{" "}
             {dto.viewCount.toLocaleString()} {dto.viewCount === 1 ? "view" : "views"}
           </p>
 
           {dto.imageUrl && (
-            <div className="mt-8">
+            <div className="mt-9">
               <EventPoster
                 src={dto.imageUrl}
                 alt={dto.title}
@@ -77,83 +77,72 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
           )}
 
           {dto.summary && (
-            <p className="mt-8 border-t border-line pt-6 text-[18px] leading-relaxed text-ink">
+            <p className="mt-9 border-t border-line pt-7 font-serif text-[21px] leading-[1.5] text-ink">
               {dto.summary}
             </p>
           )}
 
           {dto.description && (
-            <p className="mt-5 whitespace-pre-line text-[15px] leading-[1.75] text-muted">
+            <p className="mt-6 whitespace-pre-line text-[15px] leading-[1.75] text-muted">
               {dto.description}
             </p>
           )}
 
           {tags.length > 0 && (
-            <p className="mt-6 text-[12px] text-faint">{tags.join(", ")}</p>
+            <p className="mt-7 text-[11px] uppercase tracking-[0.12em] text-faint">
+              {tags.join(" · ")}
+            </p>
           )}
 
-          <dl className="mt-10 grid grid-cols-1 gap-px overflow-hidden rounded-2xl border border-line bg-line sm:grid-cols-3">
+          <dl className="mt-11 grid grid-cols-1 divide-y divide-line border-y border-line sm:grid-cols-3 sm:divide-x sm:divide-y-0">
             <Fact label="Starts" value={formatDay(dto.date)} />
             <Fact label="Ends" value={dto.endDate ? formatDay(dto.endDate) : "—"} />
             <Fact label="Status" value={timing} />
           </dl>
         </div>
 
-        <aside className="lg:sticky lg:top-20 lg:self-start">
-          <div className="relative overflow-hidden rounded-2xl border border-line bg-surface/60 p-6 backdrop-blur-md">
-            <div
-              aria-hidden
-              className="pointer-events-none absolute -right-20 -top-20 h-48 w-48 rounded-full bg-primary opacity-20 blur-3xl"
-            />
-            <p className="text-[13px] text-muted">
-              {closed
-                ? "This event has closed"
-                : phase === "ongoing"
-                  ? "Registration closes in"
-                  : "Starts in"}
-            </p>
-            <p className="mt-1 font-mono text-[30px] font-semibold tracking-tight text-ink">
-              {countdown(target)}
-            </p>
+        <aside className="lg:sticky lg:top-24 lg:self-start">
+          <p className="text-[11px] uppercase tracking-[0.14em] text-faint">
+            {closed
+              ? "This event has closed"
+              : phase === "ongoing"
+                ? "Registration closes in"
+                : "Starts in"}
+          </p>
+          <p className="mt-2 font-mono text-[30px] tracking-tight text-ink tabular-nums">
+            {countdown(target)}
+          </p>
 
-            <div className="mt-6 border-t border-line pt-4">
-              <p className="text-[13px] text-faint">Organiser</p>
-              <p className="mt-0.5 text-[14px] text-ink">{dto.organizer}</p>
-            </div>
-            <div className="mt-4">
-              <p className="text-[13px] text-faint">Source</p>
-              <p className="mt-0.5 text-[14px] capitalize text-ink">{dto.source}</p>
-            </div>
-            <div className="mt-4">
-              <p className="text-[13px] text-faint">Views</p>
-              <p className="mt-0.5 text-[14px] text-ink">{dto.viewCount.toLocaleString()}</p>
-            </div>
-
-            {dto.link ? (
-              <a
-                href={dto.link}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="glow-primary mt-6 block rounded-lg bg-gradient-to-r from-primary to-primary-2 px-4 py-2.5 text-center text-sm font-semibold text-bg transition-all duration-200 hover:brightness-105"
-              >
-                Register on {dto.source}
-              </a>
-            ) : (
-              <p className="mt-6 rounded-lg border border-line px-4 py-2.5 text-center text-sm text-faint">
-                No registration link provided
-              </p>
-            )}
-
-            <p className="mt-4 text-[12px] leading-relaxed text-faint">
-              Verify details with the organiser before travelling or paying.
-            </p>
+          <div className="mt-8 space-y-5 border-t border-line pt-6">
+            <Meta label="Organiser" value={dto.organizer} />
+            <Meta label="Source" value={dto.source} capitalize />
+            <Meta label="Views" value={dto.viewCount.toLocaleString()} />
           </div>
+
+          {dto.link ? (
+            <a
+              href={dto.link}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="glow-primary mt-8 block rounded-[2px] bg-gradient-to-r from-primary to-primary-2 px-4 py-2.5 text-center text-sm font-semibold text-bg transition-all duration-200 hover:brightness-105"
+            >
+              Register on {dto.source}
+            </a>
+          ) : (
+            <p className="mt-8 border-y border-line px-4 py-3 text-center text-[13px] text-faint">
+              No registration link provided
+            </p>
+          )}
+
+          <p className="mt-5 text-[12px] leading-relaxed text-faint">
+            Verify details with the organiser before travelling or paying.
+          </p>
         </aside>
       </div>
 
       {similar.length > 0 && (
-        <section className="mt-24">
-          <h2 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">
+        <section className="mt-28">
+          <h2 className="font-serif text-[26px] leading-none tracking-tight text-ink">
             Also worth a look
           </h2>
           <div className="mt-4">
@@ -168,11 +157,28 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
   );
 }
 
+function Meta({
+  label,
+  value,
+  capitalize,
+}: {
+  label: string;
+  value: string;
+  capitalize?: boolean;
+}) {
+  return (
+    <div>
+      <p className="text-[11px] uppercase tracking-[0.12em] text-faint">{label}</p>
+      <p className={`mt-1 text-[14px] text-ink ${capitalize ? "capitalize" : ""}`}>{value}</p>
+    </div>
+  );
+}
+
 function Fact({ label, value }: { label: string; value: string }) {
   return (
-    <div className="bg-surface p-4">
-      <dt className="text-[11px] uppercase tracking-[0.07em] text-faint">{label}</dt>
-      <dd className="mt-1 text-[15px] text-ink">{value}</dd>
+    <div className="py-4 sm:px-5 sm:first:pl-0 sm:last:pr-0">
+      <dt className="text-[11px] uppercase tracking-[0.12em] text-faint">{label}</dt>
+      <dd className="mt-1.5 text-[15px] text-ink">{value}</dd>
     </div>
   );
 }

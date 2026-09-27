@@ -6,6 +6,7 @@ import type { EventDTO } from "@/lib/events";
 import { EVENT_TYPES, EVENT_TYPE_LABELS } from "@/lib/constants";
 import { countdown } from "@/lib/format";
 import { IndexRow, LeadStory, Poster, accentFor, accentTextFor } from "./EventCard";
+import { DeadlineTicker } from "./DeadlineTicker";
 import { SkeletonCard } from "./SkeletonCard";
 
 const TIMEFRAMES = [
@@ -133,9 +134,11 @@ export function EventExplorer({
   };
 
   return (
-    <section className="mt-16 pb-24">
+    <section className="pb-24">
+      <DeadlineTicker events={closing} />
+
       {/* Filters — quiet index-style controls */}
-      <div className="flex flex-col gap-4 border-y border-line py-5">
+      <div className="mt-10 flex flex-col gap-4 border-b border-line pb-5">
         <div className="flex flex-wrap items-center gap-x-8 gap-y-3">
           <div className="relative">
             <svg
@@ -232,7 +235,7 @@ export function EventExplorer({
       {/* Closing soon */}
       {closing.length > 0 && (
         <section className="mt-16">
-          <h2 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-closing">
+          <h2 className="font-serif text-[26px] leading-none tracking-tight text-closing">
             Closing soon
           </h2>
           <div className="mt-5 grid grid-cols-2 divide-x divide-line border-y border-line md:grid-cols-4">
@@ -250,7 +253,7 @@ export function EventExplorer({
                     {EVENT_TYPE_LABELS[event.eventType] ?? "Event"}
                   </span>
                 </div>
-                <Poster event={event} radius="rounded-md" className="h-14 w-14" />
+                <Poster event={event} radius="rounded-[2px]" className="h-14 w-14" />
                 <p className="line-clamp-2 text-[14px] leading-snug text-ink transition-colors group-hover:text-white">
                   {event.title}
                 </p>
@@ -266,7 +269,7 @@ export function EventExplorer({
       {/* Lead story */}
       {lead && (
         <section className="mt-20">
-          <h2 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">
+          <h2 className="font-serif text-[26px] leading-none tracking-tight text-ink">
             Lead story
           </h2>
           <div className="mt-6">
@@ -278,7 +281,7 @@ export function EventExplorer({
       {/* The index */}
       {index.length > 0 && (
         <section className="mt-24">
-          <h2 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">
+          <h2 className="font-serif text-[26px] leading-none tracking-tight text-ink">
             The index
           </h2>
           <div className="mt-4">

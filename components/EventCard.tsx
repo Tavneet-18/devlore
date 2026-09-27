@@ -28,7 +28,7 @@ export const accentTextFor = (type: string) => TYPE_TEXT[type] ?? "text-muted";
 export function Poster({
   event,
   className = "",
-  radius = "rounded-lg",
+  radius = "rounded-[2px]",
 }: {
   event: EventDTO;
   className?: string;
@@ -101,8 +101,8 @@ export function LeadStory({ event }: { event: EventDTO }) {
 
   return (
     <article className="group grid grid-cols-1 gap-8 md:grid-cols-[1.15fr_1fr] md:items-center">
-      <div className="relative min-h-[240px] overflow-hidden rounded-lg border border-line md:min-h-[360px]">
-        <Poster event={event} radius="rounded-lg" className="absolute inset-0 h-full w-full transition-transform duration-700 group-hover:scale-[1.02]" />
+      <div className="relative min-h-[240px] overflow-hidden rounded-[2px] border border-line md:min-h-[360px]">
+        <Poster event={event} radius="rounded-[2px]" className="absolute inset-0 h-full w-full transition-transform duration-700 group-hover:scale-[1.02]" />
         <div
           aria-hidden
           className="absolute inset-0 bg-gradient-to-t from-bg/70 to-transparent md:bg-gradient-to-r md:from-transparent md:to-bg/50"
@@ -119,7 +119,7 @@ export function LeadStory({ event }: { event: EventDTO }) {
         </div>
 
         <Link href={`/events/${event.id}`} className="mt-4 block">
-          <h2 className="text-[34px] font-bold leading-[1.1] tracking-tight text-ink transition-colors group-hover:text-white sm:text-[40px]">
+          <h2 className="font-serif text-[clamp(1.9rem,4vw,2.6rem)] font-normal leading-[1.08] tracking-[-0.01em] text-ink transition-colors group-hover:text-white">
             {event.title}
           </h2>
         </Link>
@@ -146,7 +146,7 @@ export function LeadStory({ event }: { event: EventDTO }) {
           <div className="flex items-center gap-3">
             <Link
               href={`/events/${event.id}`}
-              className="glow-primary inline-flex items-center rounded-lg bg-gradient-to-r from-primary to-primary-2 px-5 py-2.5 text-sm font-semibold text-bg transition-all duration-200 hover:brightness-105"
+              className="glow-primary inline-flex items-center rounded-[2px] bg-gradient-to-r from-primary to-primary-2 px-5 py-2.5 text-sm font-semibold text-bg transition-all duration-200 hover:brightness-105"
             >
               Reserve a pass
             </Link>
@@ -178,7 +178,7 @@ export function IndexRow({ event, index }: { event: EventDTO; index: number }) {
 
       <Poster
         event={event}
-        radius="rounded-md"
+        radius="rounded-[2px]"
         className="h-24 w-24 transition-transform duration-300 group-hover:scale-[1.04]"
       />
 
@@ -190,7 +190,7 @@ export function IndexRow({ event, index }: { event: EventDTO; index: number }) {
           </span>
         </div>
         <Link href={`/events/${event.id}`} className="mt-1.5 block">
-          <h3 className="line-clamp-1 text-[22px] font-semibold leading-tight tracking-tight text-ink transition-colors group-hover:text-white">
+          <h3 className="line-clamp-1 font-serif text-[23px] font-normal leading-tight tracking-[-0.005em] text-ink transition-colors group-hover:text-white">
             {event.title}
           </h3>
         </Link>
