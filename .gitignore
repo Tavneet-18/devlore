@@ -47,3 +47,11 @@ ingest-summary.json
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local tool / MCP configuration — machine-specific, never committed
+# (the stitch server config lives outside the repo; these are per-machine
+#  paths and registry wiring that should not ship)
+/opencode.json
+/opencode.jsonc
+/mcp.json
+/components.json
