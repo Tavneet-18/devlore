@@ -42,6 +42,50 @@
   --ease-premium: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
+/*
+ * shadcn/ui compatibility bridge.
+ *
+ * Registry components are written against shadcn's semantic token names
+ * (bg-background, text-muted-foreground, border-border). Those tokens do not
+ * exist in the editorial theme above, so without this block every shadcn
+ * component would resolve to an undefined value and render broken.
+ *
+ * This maps shadcn's vocabulary onto the palette already established here, so
+ * anything pulled from a registry inherits the design rather than fighting it.
+ * Purely additive: no token above is modified.
+ */
+@theme inline {
+  --color-background: #07070c;
+  --color-foreground: #f4f4f8;
+
+  --color-card: #0e0e16;
+  --color-card-foreground: #f4f4f8;
+
+  --color-popover: #15151f;
+  --color-popover-foreground: #f4f4f8;
+
+  /* Violet with ink-dark text, matching the single filled CTA. */
+  --color-primary-foreground: #07070c;
+
+  --color-secondary: #15151f;
+  --color-secondary-foreground: #f4f4f8;
+
+  --color-muted: #0e0e16;
+  --color-muted-foreground: #9494a8;
+
+  --color-accent: #15151f;
+  --color-accent-foreground: #f4f4f8;
+
+  --color-destructive: #f87171;
+  --color-destructive-foreground: #f4f4f8;
+
+  --color-border: #1e1e2a;
+  --color-input: #1e1e2a;
+  --color-ring: #7c6bff;
+
+  --radius: 0.5rem;
+}
+
 :root {
   color-scheme: dark;
 }
