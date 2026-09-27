@@ -29,6 +29,9 @@ export function Footer() {
             <Link href="/list" className="transition-colors duration-200 hover:text-ink">
               Submit
             </Link>
+            <Link href="/admin" className="transition-colors duration-200 hover:text-ink">
+              Admin
+            </Link>
           </nav>
         </div>
 

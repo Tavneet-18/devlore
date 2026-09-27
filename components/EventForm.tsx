@@ -177,29 +177,33 @@ export function EventForm() {
         />
       </div>
 
-      <div className="rounded-xl border border-line bg-surface/70 p-4 sm:col-span-2 backdrop-blur-md">
+      <div className="border-y border-line py-4 sm:col-span-2">
         <div className="flex items-center justify-between gap-4">
           <p className="text-[13px] text-muted">Generate a draft summary and tags</p>
           <button
             type="button"
             onClick={enhance}
             disabled={enhancing || (!form.title && !form.description)}
-            className="rounded-lg border border-line bg-raised/60 px-3 py-1.5 text-[13px] text-ink transition-colors hover:border-line-hi disabled:opacity-40"
+            className="rounded-[2px] border border-line bg-raised/40 px-3 py-1.5 text-[13px] text-ink transition-colors hover:border-line-hi hover:bg-raised disabled:opacity-40"
           >
             {enhancing ? "Generating…" : "Generate"}
           </button>
         </div>
         {aiSummary && (
           <div className="mt-4 space-y-2">
-            <p className="text-[14px] leading-relaxed text-ink">{aiSummary}</p>
-            {aiTags.length > 0 && <p className="text-[12px] text-faint">{aiTags.join(", ")}</p>}
+            <p className="font-serif text-[17px] leading-relaxed text-ink">{aiSummary}</p>
+            {aiTags.length > 0 && (
+              <p className="text-[11px] uppercase tracking-[0.12em] text-faint">
+                {aiTags.join(" · ")}
+              </p>
+            )}
           </div>
         )}
       </div>
 
       {outcome && (
         <p
-          className={`rounded-lg border border-line bg-surface/70 px-4 py-3 text-[14px] sm:col-span-2 ${
+          className={`border-y border-line px-1 py-3 text-[14px] sm:col-span-2 ${
             outcome.ok ? "text-positive" : "text-critical"
           }`}
         >
@@ -211,7 +215,7 @@ export function EventForm() {
         <button
           type="submit"
           disabled={submitting}
-          className="glow-primary w-full rounded-lg bg-gradient-to-r from-primary to-primary-2 px-4 py-3 text-sm font-semibold text-bg transition-all duration-200 hover:brightness-105 disabled:opacity-50"
+          className="glow-primary w-full rounded-[2px] bg-gradient-to-r from-primary to-primary-2 px-4 py-3 text-sm font-semibold text-bg transition-all duration-200 hover:brightness-105 disabled:opacity-50"
         >
           {submitting ? "Submitting…" : "Submit for review"}
         </button>
@@ -236,7 +240,7 @@ function Field({
 }) {
   return (
     <label className={`block ${className}`}>
-      <span className="mb-1.5 block text-[13px] text-muted">{label}</span>
+      <span className="mb-2 block text-[11px] uppercase tracking-[0.12em] text-faint">{label}</span>
       {children}
       {hint && <span className="mt-1 block text-[12px] text-faint">{hint}</span>}
     </label>
@@ -266,4 +270,4 @@ function Check({
 }
 
 const input =
-  "w-full rounded-lg border border-line bg-raised/60 px-3 py-2 text-[14px] text-ink placeholder:text-faint transition-colors focus:border-primary focus:outline-none";
+  "w-full rounded-[2px] border border-line bg-raised/40 px-3 py-2 text-[14px] text-ink placeholder:text-faint transition-colors focus:border-primary focus:outline-none";

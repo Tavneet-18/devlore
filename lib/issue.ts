@@ -4,15 +4,22 @@
  * `Date` passed in by a server component, never read during client render.
  */
 
-/** ISO 8601 week number, used as the issue marker. */
+/**
+ * The date of the first published issue.
+ *
+ * This exists because the obvious implementation — the ISO week number — was
+ * quietly dishonest. It reported "Issue 39" on a site with no archive, which
+ * implies thirty-eight earlier editions that were never published. The number
+ * counts real weeks since the first issue instead, so it starts at 1 and only
+ * advances when an edition genuinely has.
+ */
+const FIRST_ISSUE = Date.UTC(2026, 8, 26); // 26 September 2026
+
 export function issueNumber(date: Date): number {
-  const target = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-  const dayNumber = (target.getUTCDay() + 6) % 7;
-  target.setUTCDate(target.getUTCDate() - dayNumber + 3);
-  const firstThursday = new Date(Date.UTC(target.getUTCFullYear(), 0, 4));
-  const firstDayNumber = (firstThursday.getUTCDay() + 6) % 7;
-  firstThursday.setUTCDate(firstThursday.getUTCDate() - firstDayNumber + 3);
-  return 1 + Math.round((target.getTime() - firstThursday.getTime()) / (7 * 86400000));
+  const current = Date.UTC(date.getFullYear(), date.getMonth(), date.getDate());
+  const weeks = Math.floor((current - FIRST_ISSUE) / (7 * 86400000));
+  // Never report a non-positive issue, even if the clock moves backwards.
+  return Math.max(1, weeks + 1);
 }
 
 /** "SATURDAY 26 SEPTEMBER 2026" — set in the nameplate with wide tracking. */

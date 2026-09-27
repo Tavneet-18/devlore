@@ -59,6 +59,10 @@ export function Marquee({
         .map((_, i) => (
           <div
             key={i}
+            // Every copy after the first is decorative — it only exists to make
+            // the loop seamless. Without this a screen reader announces the
+            // whole crawl once per repeat.
+            aria-hidden={i > 0 ? true : undefined}
             className={cn("flex shrink-0 justify-around gap-(--gap)", {
               "animate-marquee flex-row": !vertical,
               "animate-marquee-vertical flex-col": vertical,

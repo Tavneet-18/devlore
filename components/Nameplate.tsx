@@ -11,18 +11,21 @@ import Link from "next/link";
  *
  * Note there is no logo tile and no filled call-to-action. The word is the
  * mark, and a publication does not put a marketing button in its masthead.
+ *
+ * Admin is deliberately absent here and lives in the footer instead: four nav
+ * items plus the wordmark overflow a 375px viewport, and an unauthenticated
+ * admin panel has no business being advertised in a masthead.
  */
 const NAV = [
   { href: "/", label: "Discover" },
   { href: "/bookmarks", label: "Saved" },
   { href: "/list", label: "Submit" },
-  { href: "/admin", label: "Admin" },
 ];
 
 export function Nameplate({ dateLine, issue }: { dateLine: string; issue: number }) {
   return (
     <header className="sticky top-0 z-50 border-b border-line bg-bg/80 backdrop-blur-xl">
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-6 px-6 sm:px-10">
+      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-5 sm:px-8 lg:px-10">
         <Link
           href="/"
           className="shrink-0 font-serif text-[23px] leading-none tracking-tight text-ink transition-colors duration-200 hover:text-white"
@@ -38,7 +41,7 @@ export function Nameplate({ dateLine, issue }: { dateLine: string; issue: number
           </span>
         </div>
 
-        <nav className="flex shrink-0 items-center gap-5 sm:gap-7">
+        <nav className="flex shrink-0 items-center gap-4 sm:gap-6">
           {NAV.map((item) => (
             <Link
               key={item.href}

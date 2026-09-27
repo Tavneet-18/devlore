@@ -61,25 +61,26 @@ export function AdminPanel() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
-      <header className="mb-8 pt-8">
-        <h1 className="text-[34px] font-bold leading-tight tracking-tight text-ink">
-          Moderation
+    <div className="mx-auto max-w-5xl px-5 py-10 sm:px-8 lg:px-10">
+      <header className="mb-8 border-b border-line pb-8">
+        <p className="text-[11px] uppercase tracking-[0.18em] text-faint">Staff</p>
+        <h1 className="mt-4 font-serif text-[clamp(2rem,5vw,2.8rem)] font-normal leading-[0.98] tracking-[-0.02em] text-ink">
+          <em>Moderation</em>
         </h1>
-        <p className="mt-2 text-[15px] text-muted">
-          Review organizer submissions before they appear publicly.
+        <p className="mt-4 text-[14px] text-muted">
+          Review submissions before they appear in the index.
         </p>
       </header>
 
-      <div className="mb-6 flex gap-1 border-b border-line">
+      <div className="mb-2 flex flex-wrap gap-5 border-b border-line">
         {TABS.map((t) => (
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
-            className={`-mb-px border-b-2 px-3 py-2 text-sm transition-colors ${
+            className={`-mb-px border-b-2 pb-3 text-[11px] uppercase tracking-[0.12em] transition-colors ${
               tab === t.id
                 ? "border-primary text-ink"
-                : "border-transparent text-muted hover:text-ink"
+                : "border-transparent text-faint hover:text-ink"
             }`}
           >
             {t.label}
@@ -87,15 +88,15 @@ export function AdminPanel() {
         ))}
       </div>
 
-      {loading && <p className="py-10 text-center text-sm text-faint">Loading…</p>}
+      {loading && <p className="py-16 text-center text-[13px] text-faint">Loading…</p>}
 
       {!loading && events?.length === 0 && (
-        <p className="rounded-xl border border-dashed border-line px-6 py-16 text-center text-sm text-muted">
+        <p className="border-b border-line py-20 text-center text-[14px] text-muted">
           Nothing here.
         </p>
       )}
 
-      <div className="space-y-3">
+      <div>
         {events?.map((event) =>
           editing === event.id ? (
             <EditRow
@@ -136,13 +137,15 @@ function Row({
   onDelete: () => void;
 }) {
   return (
-    <div className="rounded-xl border border-line bg-surface/70 p-4 backdrop-blur-md">
+    <div className="border-b border-line py-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <h3 className="font-semibold text-ink">{event.title}</h3>
+          <div className="flex flex-wrap items-center gap-3">
+            <h3 className="font-serif text-[20px] font-normal leading-snug text-ink">
+              {event.title}
+            </h3>
             <span
-              className={`text-[11px] uppercase tracking-[0.07em] ${
+              className={`text-[11px] uppercase tracking-[0.12em] ${
                 STATUS_TEXT[event.status] ?? "text-faint"
               }`}
             >
@@ -184,7 +187,7 @@ function Action({
   return (
     <button
       onClick={onClick}
-      className={`rounded-lg border border-line bg-raised/60 px-2.5 py-1 text-[13px] transition-colors hover:border-line-hi ${
+      className={`rounded-[2px] border border-line bg-raised/40 px-2.5 py-1 text-[13px] transition-colors hover:border-line-hi ${
         danger ? "text-critical" : "text-muted"
       }`}
     >
@@ -227,8 +230,8 @@ function EditRow({ event, onDone }: { event: EventDTO; onDone: (changed: boolean
   }
 
   return (
-    <div className="rounded-xl border border-primary/40 bg-surface/70 p-4 backdrop-blur-md">
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+    <div className="border-b border-line py-6">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Labeled label="Title" wide>
           <input
             className={input}
@@ -334,17 +337,17 @@ function EditRow({ event, onDone }: { event: EventDTO; onDone: (changed: boolean
         </label>
       </div>
 
-      <div className="mt-4 flex gap-2">
+      <div className="mt-5 flex gap-2">
         <button
           onClick={save}
           disabled={saving}
-          className="glow-primary rounded-lg bg-gradient-to-r from-primary to-primary-2 px-3.5 py-1.5 text-[13px] font-semibold text-bg transition-all duration-200 hover:brightness-105 disabled:opacity-50"
+          className="glow-primary rounded-[2px] bg-gradient-to-r from-primary to-primary-2 px-3.5 py-1.5 text-[13px] font-semibold text-bg transition-all duration-200 hover:brightness-105 disabled:opacity-50"
         >
           {saving ? "Saving…" : "Save changes"}
         </button>
         <button
           onClick={() => onDone(false)}
-          className="rounded-lg border border-line bg-raised/60 px-3.5 py-1.5 text-[13px] text-muted transition-colors hover:border-line-hi"
+          className="rounded-[2px] border border-line bg-raised/40 px-3.5 py-1.5 text-[13px] text-muted transition-colors hover:border-line-hi"
         >
           Cancel
         </button>
@@ -364,14 +367,14 @@ function Labeled({
 }) {
   return (
     <label className={`block ${wide ? "sm:col-span-2" : ""}`}>
-      <span className="mb-1 block text-[13px] text-faint">{label}</span>
+      <span className="mb-2 block text-[11px] uppercase tracking-[0.12em] text-faint">{label}</span>
       {children}
     </label>
   );
 }
 
 const input =
-  "w-full rounded-lg border border-line bg-raised/60 px-3 py-2 text-[14px] text-ink transition-colors focus:border-primary focus:outline-none";
+  "w-full rounded-[2px] border border-line bg-raised/40 px-3 py-2 text-[14px] text-ink transition-colors focus:border-primary focus:outline-none";
 
 function toLocalInput(iso: string): string {
   const d = new Date(iso);

@@ -100,10 +100,19 @@ export function EventExplorer({
   /**
    * Ordering is the editorial point of the page: the nearest deadlines come
    * first, so the reader meets the most time-sensitive thing immediately.
+   *
+   * The three slices are disjoint by construction. They previously overlapped,
+   * which put the lead story inside the closing-soon strip as well — the same
+   * event rendered twice on one page.
    */
-  const { closing, lead, index } = useMemo(() => {
+  const { lead, closing, index, upcoming } = useMemo(() => {
     if (!events || events.length === 0) {
-      return { closing: [] as EventDTO[], lead: null as EventDTO | null, index: [] as EventDTO[] };
+      return {
+        lead: null as EventDTO | null,
+        closing: [] as EventDTO[],
+        index: [] as EventDTO[],
+        upcoming: [] as EventDTO[],
+      };
     }
     const deadlineOf = (e: EventDTO) =>
       e.endDate ? new Date(e.endDate).getTime() : new Date(e.date).getTime();
@@ -112,17 +121,19 @@ export function EventExplorer({
     const rest = events.filter((e) => deadlineOf(e) < now).sort((a, b) => deadlineOf(a) - deadlineOf(b));
 
     const ordered = [...live, ...rest];
+    const [first, ...tail] = ordered;
+
     return {
-      closing: ordered.slice(0, 4),
-      lead: ordered[0] ?? null,
-      index: ordered.slice(1),
+      lead: first ?? null,
+      closing: tail.slice(0, 4),
+      index: tail.slice(4),
+      // The ticker must only ever carry deadlines that are still ahead,
+      // otherwise it advertises a closing time that has already passed.
+      upcoming: live,
     };
   }, [events, now]);
 
-  const closingSoon = useMemo(
-    () => closing.filter((e) => e.endDate && new Date(e.endDate).getTime() >= now).length,
-    [closing, now]
-  );
+  const closingSoon = useMemo(() => upcoming.length, [upcoming]);
 
   const reset = () => {
     setType("all");
@@ -135,7 +146,7 @@ export function EventExplorer({
 
   return (
     <section className="pb-24">
-      <DeadlineTicker events={closing} />
+      <DeadlineTicker events={upcoming} />
 
       {/* Filters — quiet index-style controls */}
       <div className="mt-10 flex flex-col gap-4 border-b border-line pb-5">
@@ -214,7 +225,7 @@ export function EventExplorer({
 
       {events === null && (
         <div className="mt-12 space-y-4">
-          <div className="skeleton h-[360px] rounded-lg" />
+          <div className="skeleton h-[360px] rounded-[2px]" />
           <div className="space-y-4">
             {Array.from({ length: 4 }).map((_, i) => (
               <SkeletonCard key={i} />
