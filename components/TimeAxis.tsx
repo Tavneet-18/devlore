@@ -252,8 +252,10 @@ export function TimeAxis({ events, now: nowIso }: { events: EventDTO[]; now: str
             );
           })}
 
-          {/* NOW. Fixed to the viewport while the axis scrolls beneath it. */}
-          <div className="sticky top-0 z-20 h-0" style={{ left: model.nowX }}>
+          {/* NOW. Fixed to the viewport while the axis scrolls beneath it.
+              Zero-width so `left` places the line precisely rather than
+              shifting a full-width box off the right edge. */}
+          <div className="sticky top-0 z-20 h-0 w-0" style={{ left: model.nowX }}>
             <div
               aria-hidden
               className="w-px bg-primary shadow-[0_0_14px_rgba(124,107,255,0.55)]"
