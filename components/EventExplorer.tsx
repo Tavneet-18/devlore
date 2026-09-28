@@ -121,7 +121,17 @@ export function EventExplorer({
     };
   }, [events, now]);
 
-  const closingSoon = useMemo(() => upcoming.length, [upcoming]);
+  // Actually closing within a week. This used to be the length of the whole
+  // upcoming list, so the number was right but the label was not: it counted
+  // every open event, including ones closing in three months.
+  const closingSoon = useMemo(
+    () =>
+      upcoming.filter((e) => {
+        const d = e.endDate ? new Date(e.endDate).getTime() : new Date(e.date).getTime();
+        return d - now < 7 * 86400000;
+      }).length,
+    [upcoming, now]
+  );
 
   const reset = () => {
     setType("all");

@@ -40,23 +40,34 @@ export async function GET(request: NextRequest) {
 
   if (city) {
     // Online events match every city filter, mirroring the UI expectation.
-    and.push({ OR: [{ city: { contains: city } }, { isOnline: true }] });
+    and.push({
+      OR: [{ city: { contains: city, mode: "insensitive" } }, { isOnline: true }],
+    });
   }
 
   if (q) {
+    // Postgres LIKE is case-sensitive, so without an explicit insensitive
+    // mode a search for "ai" silently misses every event titled "AI" and the
+    // filter looks broken for no visible reason.
     and.push({
       OR: [
-        { title: { contains: q } },
-        { summary: { contains: q } },
-        { city: { contains: q } },
-        { tags: { contains: q } },
+        { title: { contains: q, mode: "insensitive" } },
+        { summary: { contains: q, mode: "insensitive" } },
+        { city: { contains: q, mode: "insensitive" } },
+        { tags: { contains: q, mode: "insensitive" } },
       ],
     });
   }
 
-  // Timeframe selects events overlapping the coming window.
-  if (timeframe === "week") and.push({ date: { lte: inWeek } });
-  if (timeframe === "month") and.push({ date: { lte: inMonth } });
+  // The timeframes select on the DEADLINE, matching how the spatial axis
+  // positions every card. Filtering on the start date instead hid events
+  // that had already opened but are still closing inside the window.
+  if (timeframe === "week" || timeframe === "month") {
+    const limit = timeframe === "week" ? inWeek : inMonth;
+    and.push({
+      OR: [{ endDate: { lte: limit } }, { endDate: null, date: { lte: limit } }],
+    });
+  }
 
   const where: Prisma.EventWhereInput = {
     status: includePending ? { in: ["APPROVED", "PENDING"] } : "APPROVED",
