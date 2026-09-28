@@ -23,9 +23,9 @@ import { accentFor, accentTextFor } from "./EventCard";
  */
 
 const DAY = 86400000;
-const PX_PER_DAY = 120;
+const PX_PER_DAY = 96;
 const PAST_DAYS = 2;
-const FUTURE_DAYS = 19;
+const FUTURE_DAYS = 28;
 
 const CARD_W = 196;
 const CARD_H = 84;
@@ -72,11 +72,12 @@ export function TimeAxis({ events, now: nowIso }: { events: EventDTO[]; now: str
       return start <= todayStart + FUTURE_DAYS * DAY && deadlineOf(e) >= rangeStart;
     });
 
-    // The horizon covers the next FUTURE_DAYS, but never clips a real
-    // deadline: if something closes beyond it, the band widens to fit rather
-    // than pushing the card off the right edge.
-    const maxDeadline = inWindow.length ? Math.max(...inWindow.map(deadlineOf)) : 0;
-    const rangeEnd = Math.max(todayStart + FUTURE_DAYS * DAY, maxDeadline + DAY);
+    // A FIXED horizon. This used to stretch to fit the furthest deadline, and
+    // a single event closing in seven weeks stretched the band to 6480px with
+    // thirteen events marooned across it — mostly empty space. The axis is a
+    // near-term view; anything past the horizon simply lives in the index
+    // instead, which already carries the full roster.
+    const rangeEnd = todayStart + FUTURE_DAYS * DAY;
     const totalDays = Math.ceil((rangeEnd - rangeStart) / DAY);
     const width = totalDays * PX_PER_DAY;
 
@@ -128,8 +129,10 @@ export function TimeAxis({ events, now: nowIso }: { events: EventDTO[]; now: str
     });
 
     const expiringSoon = future.filter((e) => deadlineOf(e) - now < 7 * DAY).length;
+    // Not dropped, just not on the axis — the index carries them.
+    const furtherOut = events.filter((e) => deadlineOf(e) > rangeEnd).length;
 
-    return { placed, days, months, width, bandH, axisY, nowX, expiringSoon, horizonDays };
+    return { placed, days, months, width, bandH, axisY, nowX, expiringSoon, horizonDays, furtherOut };
   }, [events, now]);
 
   return (
@@ -141,9 +144,14 @@ export function TimeAxis({ events, now: nowIso }: { events: EventDTO[]; now: str
             The next {model.horizonDays} days
           </p>
         </div>
-        <p className="shrink-0 text-[10px] uppercase tracking-[0.16em] text-faint">
-          {model.expiringSoon > 0 ? `${model.expiringSoon} expiring this week · ` : ""}scroll to
-          traverse time <span className="text-primary">→</span>
+        <p className="shrink-0 text-right text-[10px] uppercase tracking-[0.16em] text-faint">
+          {model.expiringSoon > 0 ? `${model.expiringSoon} expiring this week · ` : ""}
+          scroll to traverse time <span className="text-primary">→</span>
+          {model.furtherOut > 0 && (
+            <span className="mt-1 block normal-case tracking-normal text-faint/70">
+              {model.furtherOut} closing beyond the horizon — see the index
+            </span>
+          )}
         </p>
       </div>
 
@@ -152,7 +160,7 @@ export function TimeAxis({ events, now: nowIso }: { events: EventDTO[]; now: str
           {/* The past, shaded so the divide reads before the NOW line does. */}
           <div
             aria-hidden
-            className="pointer-events-none absolute left-0 top-0 bg-ink/[0.04]"
+            className="pointer-events-none absolute left-0 top-0 bg-ink/[0.02]"
             style={{ width: model.nowX, height: model.bandH }}
           />
 
