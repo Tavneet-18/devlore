@@ -65,12 +65,13 @@ export function TimeAxis({ events, now: nowIso }: { events: EventDTO[]; now: str
     const deadlineOf = (e: EventDTO) =>
       e.endDate ? new Date(e.endDate).getTime() : new Date(e.date).getTime();
 
-    // Anything active inside the window: started before it ends, and not
-    // over before it begins.
-    const inWindow = events.filter((e) => {
-      const start = new Date(e.date).getTime();
-      return start <= todayStart + FUTURE_DAYS * DAY && deadlineOf(e) >= rangeStart;
-    });
+    // Filter on the DEADLINE, matching how cards are positioned below.
+    // Filtering on the start date let an event that opened inside the window
+    // but closes weeks later render past the right edge, stretching the band
+    // to 5188px for a 2880px horizon.
+    const inWindow = events.filter(
+      (e) => deadlineOf(e) >= rangeStart && deadlineOf(e) <= rangeEnd
+    );
 
     // A FIXED horizon. This used to stretch to fit the furthest deadline, and
     // a single event closing in seven weeks stretched the band to 6480px with
