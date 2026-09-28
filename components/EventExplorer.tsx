@@ -48,6 +48,10 @@ export function EventExplorer({
   const [loading, setLoading] = useState(true);
   const [count, setCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  /** Set once a request has been in flight long enough to be worth flagging. */
+  const [slow, setSlow] = useState(false);
+  /** Set when a request has taken so long that waiting further is pointless. */
+  const [stalled, setStalled] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -55,12 +59,31 @@ export function EventExplorer({
     return () => clearTimeout(t);
   }, [q]);
 
+  /**
+   * A slow request is indistinguishable from a broken one if the only feedback
+   * is a skeleton. Observed in the wild: /api/events took 36s on a network
+   * where the same endpoint answered in 1.6s elsewhere. So the wait escalates
+   * — first an acknowledgement that it is slow, then an honest dead end with
+   * a way out, rather than an indefinite shimmer.
+   */
+  useEffect(() => {
+    if (!loading) return;
+    const a = setTimeout(() => setSlow(true), 5000);
+    const b = setTimeout(() => setStalled(true), 18000);
+    return () => {
+      clearTimeout(a);
+      clearTimeout(b);
+    };
+  }, [loading]);
+
   const fetchEvents = useCallback(async () => {
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
     setLoading(true);
     setError(null);
+    setSlow(false);
+    setStalled(false);
 
     const params = new URLSearchParams();
     if (city) params.set("city", city);
@@ -217,7 +240,9 @@ export function EventExplorer({
           ))}
           <span className="ml-auto text-[13px] text-faint">
             {loading && events === null
-              ? "loading"
+              ? stalled
+                ? "timed out"
+                : "loading"
               : `${count} ${count === 1 ? "event" : "events"}`}
             {closingSoon > 0 ? ` · ${closingSoon} closing soon` : ""}
           </span>
@@ -226,8 +251,28 @@ export function EventExplorer({
 
       {error && <p className="mt-10 text-sm text-critical">{error}</p>}
 
-      {events === null && (
+      {/* A stalled request gets a dead end and a way out, not a longer shimmer. */}
+      {stalled && events === null && (
+        <div className="mt-12 border-y border-line py-20 text-center">
+          <p className="text-[15px] text-ink">This is taking too long.</p>
+          <p className="mx-auto mt-2 max-w-sm text-[13px] leading-relaxed text-muted">
+            The event index did not respond. It may be a slow connection on your side rather
+            than a fault here.
+          </p>
+          <button
+            onClick={() => void fetchEvents()}
+            className="mt-5 rounded-[2px] bg-gradient-to-r from-primary to-primary-2 px-4 py-2 text-[13px] font-semibold text-bg transition-all duration-200 hover:brightness-105"
+          >
+            Try again
+          </button>
+        </div>
+      )}
+
+      {events === null && !stalled && (
         <div className="mt-12 space-y-4">
+          {slow && (
+            <p className="text-[13px] text-faint">Still loading — this is slower than usual.</p>
+          )}
           <div className="skeleton h-[360px] rounded-[2px]" />
           <div className="space-y-4">
             {Array.from({ length: 4 }).map((_, i) => (
