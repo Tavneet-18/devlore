@@ -1,12 +1,10 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { EventDTO } from "@/lib/events";
 import { EVENT_TYPES, EVENT_TYPE_LABELS } from "@/lib/constants";
-import { countdown } from "@/lib/format";
-import { IndexRow, LeadStory, Poster, accentFor, accentTextFor } from "./EventCard";
-import { DeadlineTicker } from "./DeadlineTicker";
+import { IndexRow } from "./EventCard";
+import { TimeAxis } from "./TimeAxis";
 import { SkeletonCard } from "./SkeletonCard";
 
 const TIMEFRAMES = [
@@ -101,18 +99,13 @@ export function EventExplorer({
    * Ordering is the editorial point of the page: the nearest deadlines come
    * first, so the reader meets the most time-sensitive thing immediately.
    *
-   * The three slices are disjoint by construction. They previously overlapped,
-   * which put the lead story inside the closing-soon strip as well — the same
-   * event rendered twice on one page.
+   * The axis and the index are disjoint by construction. They previously
+   * overlapped, which put the lead story inside the closing-soon strip as
+   * well — the same event rendered twice on one page.
    */
-  const { lead, closing, index, upcoming } = useMemo(() => {
+  const { index, upcoming } = useMemo(() => {
     if (!events || events.length === 0) {
-      return {
-        lead: null as EventDTO | null,
-        closing: [] as EventDTO[],
-        index: [] as EventDTO[],
-        upcoming: [] as EventDTO[],
-      };
+      return { index: [] as EventDTO[], upcoming: [] as EventDTO[] };
     }
     const deadlineOf = (e: EventDTO) =>
       e.endDate ? new Date(e.endDate).getTime() : new Date(e.date).getTime();
@@ -120,16 +113,11 @@ export function EventExplorer({
     const live = events.filter((e) => deadlineOf(e) >= now).sort((a, b) => deadlineOf(a) - deadlineOf(b));
     const rest = events.filter((e) => deadlineOf(e) < now).sort((a, b) => deadlineOf(a) - deadlineOf(b));
 
-    const ordered = [...live, ...rest];
-    const [first, ...tail] = ordered;
-
     return {
-      lead: first ?? null,
-      closing: tail.slice(0, 4),
-      index: tail.slice(4),
-      // The ticker must only ever carry deadlines that are still ahead,
-      // otherwise it advertises a closing time that has already passed.
       upcoming: live,
+      // The index is the detail view: everything not already on the axis,
+      // nearest deadline first.
+      index: [...live, ...rest].slice(1),
     };
   }, [events, now]);
 
@@ -146,7 +134,12 @@ export function EventExplorer({
 
   return (
     <section className="pb-24">
-      <DeadlineTicker events={upcoming} />
+      {/* The spatial time axis — the organising structure of the page. */}
+      {upcoming.length > 0 && (
+        <div className="mt-12">
+          <TimeAxis events={upcoming} now={nowIso} />
+        </div>
+      )}
 
       {/* Filters — quiet index-style controls */}
       <div className="mt-10 flex flex-col gap-4 border-b border-line pb-5">
@@ -243,53 +236,7 @@ export function EventExplorer({
         </div>
       )}
 
-      {/* Closing soon */}
-      {closing.length > 0 && (
-        <section className="mt-16">
-          <h2 className="font-serif text-[26px] leading-none tracking-tight text-closing">
-            Closing soon
-          </h2>
-          <div className="mt-5 grid grid-cols-2 divide-x divide-line border-y border-line md:grid-cols-4">
-            {closing.map((event) => (
-              <Link
-                key={event.id}
-                href={`/events/${event.id}`}
-                className="group flex flex-col gap-3 px-5 py-5 first:pl-0 transition-opacity hover:opacity-80"
-              >
-                <div className="flex items-center gap-2">
-                  <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${accentFor(event.eventType)}`} aria-hidden />
-                  <span
-                    className={`text-[10px] font-semibold uppercase tracking-[0.16em] ${accentTextFor(event.eventType)}`}
-                  >
-                    {EVENT_TYPE_LABELS[event.eventType] ?? "Event"}
-                  </span>
-                </div>
-                <Poster event={event} radius="rounded-[2px]" className="h-14 w-14" />
-                <p className="line-clamp-2 text-[14px] leading-snug text-ink transition-colors group-hover:text-white">
-                  {event.title}
-                </p>
-                <p className="mt-auto font-mono text-[12px] text-closing">
-                  {countdown(event.endDate ?? event.date)} left
-                </p>
-              </Link>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* Lead story */}
-      {lead && (
-        <section className="mt-20">
-          <h2 className="font-serif text-[26px] leading-none tracking-tight text-ink">
-            Lead story
-          </h2>
-          <div className="mt-6">
-            <LeadStory event={lead} />
-          </div>
-        </section>
-      )}
-
-      {/* The index */}
+      {/* The index — the detail view for readers who want the full roster. */}
       {index.length > 0 && (
         <section className="mt-24">
           <h2 className="font-serif text-[26px] leading-none tracking-tight text-ink">

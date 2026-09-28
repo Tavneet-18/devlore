@@ -17,7 +17,7 @@ export function HomeClient({ now }: { now: string }) {
   return (
     <div className="mx-auto max-w-6xl px-6 sm:px-10">
       <p className="pt-10 text-[11px] uppercase tracking-[0.18em] text-faint">
-        A dated index of hackathons, conferences and engineering gatherings
+        A spatial index of hackathons, conferences and engineering gatherings
       </p>
 
       {/* Headline. The dot grid is a print texture, masked so it never
@@ -28,9 +28,9 @@ export function HomeClient({ now }: { now: string }) {
           className="dot-grid pointer-events-none absolute -inset-x-8 -inset-y-6 opacity-70 [mask-image:radial-gradient(120%_100%_at_20%_0%,#000,transparent_72%)]"
         />
         <h1 className="relative font-serif text-[clamp(3rem,9vw,5.5rem)] font-normal leading-[0.95] tracking-[-0.02em] text-ink">
-          This week in
+          Ahead in
           <br />
-          <em>builders</em>
+          <em>compute</em>
           <span className="text-closing">.</span>
         </h1>
       </div>
