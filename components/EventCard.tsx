@@ -2,6 +2,7 @@ import Link from "next/link";
 import { eventPhase, eventTiming, formatDateRange } from "@/lib/format";
 import { EVENT_TYPE_LABELS } from "@/lib/constants";
 import { BookmarkButton } from "./BookmarkButton";
+import { eventOneLiner } from "@/lib/event-summary";
 import type { EventDTO } from "@/lib/events";
 
 const TYPE_ACCENT: Record<string, string> = {
@@ -92,6 +93,29 @@ export function EventPoster({
 /* A hairline is the container. No boxes, no shadows.                         */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * The one line that lets a reader decide without opening the event.
+ *
+ * The brief is preferred because it is written prose. It is null for every
+ * currently-ingested event — no source publishes description text — so the
+ * fallback is the assembled fact line, which is real in every case. Returns
+ * null rather than an empty string so the caller can omit the element entirely
+ * instead of leaving a gap.
+ */
+function skimmable(event: EventDTO): string | null {
+  if (event.brief) return event.brief;
+  return eventOneLiner({
+    title: event.title,
+    date: event.date,
+    endDate: event.endDate,
+    deadlineKind: event.deadlineKind,
+    isOnline: event.isOnline,
+    city: event.city,
+    details: event.details,
+    whoCanJoin: event.whoCanJoin,
+  });
+}
+
 export function IndexRow({ event, index }: { event: EventDTO; index: number }) {
   const accent = accentFor(event.eventType);
   const accentText = accentTextFor(event.eventType);
@@ -125,6 +149,13 @@ export function IndexRow({ event, index }: { event: EventDTO; index: number }) {
         </Link>
         {event.summary && (
           <p className="mt-1 line-clamp-1 text-[14px] text-muted">{event.summary}</p>
+        )}
+        {/* The skim line. Prefers the generated brief and otherwise states the
+            structured facts, so a reader can tell team size, fee and mode
+            without opening the page. Null when neither exists, and the row
+            simply shows nothing rather than a placeholder. */}
+        {skimmable(event) && (
+          <p className="mt-1 line-clamp-1 text-[13px] text-faint">{skimmable(event)}</p>
         )}
         {/* Mobile-only: the right-hand metadata column is hidden below sm, so
             the facts and the deadline have to appear here or they are simply

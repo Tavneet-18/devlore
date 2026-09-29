@@ -1,6 +1,9 @@
 import type { Event, Prisma } from "@prisma/client";
 import { db } from "./db";
 import { isEventType } from "./constants";
+import type { EventDetails } from "./event-details";
+import { parseDetails } from "./event-details";
+import { getSchemaCapabilities } from "./schema-capabilities";
 
 export function parseTags(event: Pick<Event, "tags">): string[] {
   try {
@@ -36,6 +39,18 @@ export interface EventDTO {
   deadlineKind: string | null;
   /** Every platform this same event was also seen on, after a cross-source merge. */
   alsoOn: { source: string; link: string | null }[];
+  /**
+   * The in-site brief, when there was enough source text to write one honestly.
+   * Null is the normal case today: measured across all four new adapters, none
+   * publishes any prose, so the page shows the structured facts instead.
+   */
+  brief: string | null;
+  /** One line derived only from the eligibility fields the source published. */
+  whoCanJoin: string | null;
+  /** Structured facts, already schema-validated. Never contains guesses. */
+  details: EventDetails | null;
+  /** When we last pulled this listing, for the "last checked" line. */
+  fetchedAt: string;
   status: string;
   viewCount: number;
   createdAt: string;
@@ -43,7 +58,7 @@ export interface EventDTO {
 }
 
 export function toEventDTO(
-  event: Event,
+  event: SelectedEvent,
   bookmarkedIds?: Set<string>,
   sourceRefs?: { source: string; link: string | null }[]
 ): EventDTO {
@@ -66,14 +81,17 @@ export function toEventDTO(
     source: event.source,
     deadlineKind: event.deadlineKind ?? null,
     alsoOn: sourceRefs ?? [],
-    status: event.status,
+    brief: event.brief ?? null,
+    whoCanJoin: event.whoCanJoin ?? null,
+    details: parseDetails(event.details),
+    fetchedAt: event.fetchedAt.toISOString(),    status: event.status,
     viewCount: event.viewCount,
     createdAt: event.createdAt.toISOString(),
     bookmarked: bookmarkedIds ? bookmarkedIds.has(event.id) : undefined,
   };
 }
 
-export function toEventDTOs(events: Event[], bookmarkedIds?: Set<string>): EventDTO[] {
+export function toEventDTOs(events: SelectedEvent[], bookmarkedIds?: Set<string>): EventDTO[] {
   return events.map((e) => toEventDTO(e, bookmarkedIds));
 }
 
@@ -132,17 +150,68 @@ export function buildEventWhere(input: EventQuery): Prisma.EventWhereInput {
   return where;
 }
 
-export async function queryEvents(input: EventQuery): Promise<{ events: Event[]; count: number }> {
+const EVENT_BASE_SELECT = {
+  id: true, title: true, summary: true, description: true,
+  date: true, endDate: true, city: true, country: true,
+  isOnline: true, eventType: true, organizer: true, link: true,
+  imageUrl: true, tags: true, beginnerFriendly: true,
+  source: true, sourceId: true, deadlineKind: true,
+  status: true, viewCount: true, createdAt: true, fetchedAt: true,
+} as const;
+
+const EVENT_DETAILS_SELECT = {
+  ...EVENT_BASE_SELECT,
+  brief: true, whoCanJoin: true, details: true,
+} as const;
+
+/** The row shape both variants share, before the migration-004 columns. */
+export type SelectedEvent = Omit<
+  Event,
+  "brief" | "whoCanJoin" | "details" | "sourceId" | "deadlineKind"
+> &
+  Partial<Pick<Event, "brief" | "whoCanJoin" | "details" | "sourceId" | "deadlineKind">>;
+
+/**
+ * A single, well-labelled cast.
+ *
+ * Prisma cannot infer a stable type from a select whose keys are added at
+ * runtime, so the two concrete variants (with and without the migration-004
+ * columns) are collapsed here rather than forcing a cast at every call site.
+ * `brief`, `whoCanJoin` and `details` are genuinely optional: they are absent
+ * until migration 004 is applied, and the DTO already treats null and absent
+ * the same way.
+ */
+export function asSelected<T>(rows: T[]): SelectedEvent[] {
+  return rows as unknown as SelectedEvent[];
+}
+
+/**
+ * An explicit column list rather than a bare findMany.
+ *
+ * A bare findMany selects every column, which makes the events API throw
+ * outright if it is deployed before migration 004 has been applied. Selecting
+ * explicitly, and dropping the new columns until the probe says they exist, is
+ * what lets code ship ahead of the manual migration without an outage.
+ */
+export async function eventSelect() {
+  const caps = await getSchemaCapabilities();
+  return caps.eventDetails ? EVENT_DETAILS_SELECT : EVENT_BASE_SELECT;
+}
+
+export async function queryEvents(
+  input: EventQuery
+): Promise<{ events: SelectedEvent[]; count: number }> {
   const where = buildEventWhere(input);
   const [events, count] = await Promise.all([
     db.event.findMany({
       where,
+      select: await eventSelect(),
       orderBy: [{ date: "asc" }, { createdAt: "desc" }],
       take: 80,
     }),
     db.event.count({ where }),
   ]);
-  return { events, count };
+  return { events: asSelected(events), count };
 }
 
 function addDays(date: Date, days: number): Date {

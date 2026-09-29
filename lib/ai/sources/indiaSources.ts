@@ -1,5 +1,7 @@
 import type { RawEvent } from "../types";
 import { politeFetch, fetchText, fetchJson, extractNextData, decodeFlightPayload } from "./http";
+import type { EventDetails } from "../../event-details";
+import { readTeamSize } from "../../event-details";
 
 /**
  * Adapters for Devfolio, Hack2Skill, WeMakeDevs and MLH.
@@ -76,6 +78,17 @@ function plain(value: unknown, max = 600): string {
  */
 const INDIA_HINTS =
   /\b(india|indian|bengaluru|bangalore|mumbai|delhi|hyderabad|pune|chennai|kolkata|ahmedabad|jaipur|indore|kochi|coimbatore|chandigarh|noida|gurgaon|gurugram|haryana|maharashtra|karnataka|telangana|gujarat|rajasthan|madhya pradesh|tamil nadu|uttar pradesh|new delhi|navi mumbai|thane|pune)\b/i;
+
+/**
+ * A location string that names a delivery format rather than a place.
+ *
+ * WeMakeDevs puts "Hybrid" or "Online" in its location field for events with no
+ * fixed venue. Treating that as an address would put "Venue: Hybrid" on the
+ * detail page, which is not a venue.
+ */
+function isFormatWord(value: string): boolean {
+  return /^(online|virtual|remote|hybrid|in[- ]?person|offline|tbd|anywhere|global)$/i.test(value.trim());
+}
 
 function isInScope(raw: { isOnline?: boolean; city?: string | null; venue?: string }): boolean {
   if (raw.isOnline) return true;
@@ -163,6 +176,17 @@ const devfolioFetch = async (): Promise<RawEvent[]> => {
       const isOnline = h.is_online === true;
       const start = h.starts_at ?? eventEnd;
 
+      // Devfolio's public listing publishes no description, prize, team size,
+      // fee, venue or eligibility — verified against the live payload, and its
+      // per-hackathon page 404s, so there is nowhere else to look. What it does
+      // publish is themes and a participant count, and those are recorded.
+      const details: EventDetails = {
+        ...(themes.length ? { themes } : {}),
+        ...(participants > 0 ? { participants } : {}),
+        ...(h.settings?.reg_starts_at ? { regStart: String(h.settings.reg_starts_at) } : {}),
+        ...(regEnd ? {} : { noDeadlineReason: "Devfolio lists no registration deadline for this hackathon." }),
+      };
+
       out.push({
         source: "devfolio",
         sourceId,
@@ -179,10 +203,14 @@ const devfolioFetch = async (): Promise<RawEvent[]> => {
         deadlineKind: regEnd ? "registration" : "event-end",
         city: isOnline ? undefined : "India",
         isOnline,
-        organizer: "Devfolio",
+        // Devfolio is the platform hosting the listing. The organising body is
+        // not in the payload, so this says so instead of naming the platform
+        // as the organiser.
+        organizer: "Not stated by the listing (on Devfolio)",
         link,
         imageUrl: safeUrl(h.settings?.featured_cover_img_v2 ?? h.settings?.featured_cover_img, DEVFOLIO_BASE) ?? undefined,
         eventType: "hackathon",
+        details,
       });
     } catch {
       // One malformed row must not drop the rest.
@@ -215,8 +243,46 @@ interface H2sEventDetails {
   registrationEnd?: string | null;
   submissionStart?: string | null;
   submissionEnd?: string | null;
-  tags?: { mode?: { value?: string }; registrations?: { value?: number }; teamSize?: { min?: number; max?: number } };
-  sections?: { title?: string; content?: string }[];
+  tags?: {
+    mode?: { value?: string };
+    registrations?: { value?: number };
+    ticket?: { value?: string };
+    teamSize?: { min?: number; max?: number };
+    age?: { min?: number; max?: number };
+  };
+  sections?: H2sSection[];
+}
+
+/**
+ * Sections are nested three deep and each leaf may hold either a bare string or
+ * a `{ value }` object depending on which field the editor wrote into it.
+ */
+interface H2sSection {
+  title?: string;
+  content?: string | { value?: string };
+  category?: { title?: string; data?: H2sLeaf[] }[];
+}
+
+interface H2sLeaf {
+  content?: string | { value?: string };
+  value?: string;
+}
+
+/** Pull every scrap of prose out of a section tree, keyed by section title. */
+function h2sSectionText(sections: H2sSection[] | undefined): Map<string, string> {
+  const out = new Map<string, string>();
+  for (const s of sections ?? []) {
+    const parts: string[] = [];
+    const take = (v: H2sLeaf["content"] | H2sLeaf["value"]) => {
+      if (typeof v === "string" && v.trim()) parts.push(v.trim());
+      else if (v && typeof v === "object" && typeof v.value === "string" && v.value.trim())
+        parts.push(v.value.trim());
+    };
+    take(s?.content);
+    for (const c of s?.category ?? []) for (const d of c?.data ?? []) { take(d?.content); take(d?.value); }
+    if (parts.length && s?.title) out.set(s.title, plain(parts.join(" "), 1200));
+  }
+  return out;
 }
 
 /** Parse robots.txt into the set of /event/ slugs we must never request. */
@@ -285,36 +351,83 @@ const hack2skillFetch = async (): Promise<RawEvent[]> => {
       const mode = String(d.tags?.mode?.value ?? "").toUpperCase();
       const isOnline = mode === "VIRTUAL" || mode === "REMOTE";
       const isHybrid = mode === "HYBRID";
+      // Hack2skill publishes no city and no venue for any of these events. The
+      // offline ones previously got city "India", which the detail page then
+      // rendered as "Venue: India" — a country is not a venue, and the source
+      // said nothing about where the event is.
+      const city: string | undefined = undefined;
 
-      const overview =
-        (d.sections ?? [])
-          .map((s) => `${plain(s?.title, 80)}: ${plain(s?.content, 400)}`)
-          .filter((s) => s.includes(":"))
-          .join(" ")
-          .slice(0, 900) || "";
+      // Measured on all four open events: every section's data array is empty,
+      // so `sectionText` is almost always empty and the brief is correctly
+      // skipped. It is read anyway because it costs nothing and the payload
+      // could change.
+      const sectionText = h2sSectionText(d.sections);
+      const eligibilityText = [...sectionText.entries()]
+        .filter(([heading]) => /who can|eligib/i.test(heading))
+        .map(([, body]) => body)
+        .join(" ");
+
+      // The sections most likely to carry a real description, in the order
+      // they should be preferred.
+      const overviewHeading =
+        ["Event Overview", "Overview", "About", "Why participate"].find((h) => sectionText.has(h)) ??
+        [...sectionText.keys()].find((h) => !/contact|faq|rule|social|timeline|attend/i.test(h));
+      const sourceText = overviewHeading ? sectionText.get(overviewHeading) : undefined;
 
       const registrations = Number(d.tags?.registrations?.value ?? 0);
       const registrationNote =
         registrations > 0 ? ` ${registrations.toLocaleString()} registered on Hack2skill.` : "";
+
+      // The platform is the marketplace, not the organiser. These listings name
+      // no organising body, so say that rather than printing "Hack2skill" as if
+      // it were the host.
+      const organiser: string | undefined = undefined;
+
+      // Age limits arrive as 16-65 on every Hack2skill event, which is the
+      // platform default rather than a stated rule. Only surface a bound that is
+      // actually narrower than that default.
+      const age = d.tags?.age;
+      const ageNote =
+        age?.min !== undefined && age?.max !== undefined && (age.min > 16 || age.max < 65)
+          ? `Ages ${age.min}-${age.max}.`
+          : "";
+
+      const ticket = String(d.tags?.ticket?.value ?? "").toUpperCase();
+      const eligibility = [eligibilityText, ageNote].filter(Boolean).join(" ").trim();
+
+      const details: EventDetails = {
+        ...(sourceText ? { sourceText } : {}),
+        ...readTeamSize(d.tags?.teamSize?.min, d.tags?.teamSize?.max),
+        ...(ticket === "FREE" ? { fee: "free" as const } : {}),
+        ...(eligibility ? { eligibility: plain(eligibility, 300) } : {}),
+        ...(registrations > 0 ? { participants: registrations } : {}),
+        ...(d.registrationStart ? { regStart: d.registrationStart } : {}),
+        ...(d.submissionStart ? { submissionStart: d.submissionStart } : {}),
+        ...(regEnd
+          ? {}
+          : { noDeadlineReason: "Hack2skill publishes no registration deadline for this event." }),
+      };
 
       out.push({
         source: "hack2skill",
         sourceId: c.slug,
         title,
         description:
-          (overview ||
+          (sourceText ||
             `${title} on Hack2skill. ${isOnline ? "Online event." : isHybrid ? "Hybrid event." : "In-person event."}`) +
           registrationNote,
         date: d.registrationStart ?? d.submissionStart ?? String(reference),
         endDate: String(reference),
         deadlineKind: regEnd ? "registration" : "event-end",
-        city: isOnline ? undefined : "India",
+        city,
         isOnline: isOnline || isHybrid,
-        organizer: "Hack2Skill",
+        organizer: organiser ?? "Hack2skill listing (organiser not stated)",
         link: `${H2S_BASE}/event/${c.slug}`,
         imageUrl: safeUrl(d.logo, H2S_BASE) ?? undefined,
         eventType: "hackathon",
+        details,
       });
+      void ageNote;
     } catch {
       // Skip this one, keep going.
     }
@@ -362,7 +475,8 @@ const wemakedevsFetch = async (): Promise<RawEvent[]> => {
 
       const formats = (card.formats ?? []).map((f) => String(f).toLowerCase());
       const isOnline = formats.includes("online") || /remote|online/i.test(String(card.location ?? ""));
-      const venue = plain(card.location, 60);
+      const rawLocation = plain(card.location, 60);
+      const venue = isFormatWord(rawLocation) ? "" : rawLocation;
 
       // Scope gate: no registration deadline is published, so these are
       // end-date-only. Keep only what is online or actually in India.
@@ -372,12 +486,24 @@ const wemakedevsFetch = async (): Promise<RawEvent[]> => {
       const link = safeUrl(href, WMD_BASE);
       if (!link) continue;
 
+      // WeMakeDevs cards publish a prize string and a location, and nothing
+      // else of substance — no description, team size, eligibility or fee.
+      const prize = card.prize ? plain(card.prize, 250) : undefined;
+      const details: EventDetails = {
+        ...(prize ? { prize } : {}),
+        ...(venue ? { venue } : {}),
+        ...(card.startDate ? { regStart: String(card.startDate) } : {}),
+        // Explicit, because a reader looking for a closing date deserves to be
+        // told the platform does not publish one.
+        noDeadlineReason: "WeMakeDevs publishes no registration deadline for this hackathon.",
+      };
+
       out.push({
         source: "wemakedevs",
         sourceId,
         title,
         description: [
-          card.prize ? `Prizes: ${plain(card.prize, 200)}.` : "",
+          prize ? `Prizes: ${prize}.` : "",
           `${title} on WeMakeDevs — a global developer community across 40 countries.`,
         ]
           .filter(Boolean)
@@ -388,10 +514,11 @@ const wemakedevsFetch = async (): Promise<RawEvent[]> => {
         deadlineKind: "event-end",
         city: isOnline ? undefined : venue || "India",
         isOnline,
-        organizer: "WeMakeDevs",
+        organizer: "Not stated by the listing (on WeMakeDevs)",
         link,
         imageUrl: safeUrl(card.image, WMD_BASE) ?? undefined,
         eventType: "hackathon",
+        details,
       });
     } catch {
       // Skip.
@@ -438,6 +565,7 @@ const mlhFetch = async (): Promise<RawEvent[]> => {
           id?: string; slug?: string; name?: string; status?: string;
           startsAt?: string; endsAt?: string; location?: string;
           formatType?: string; backgroundUrl?: string; websiteUrl?: string;
+          venueAddress?: { city?: string; state?: string; country?: string };
         };
 
         const title = plain(e.name, 200);
@@ -459,6 +587,31 @@ const mlhFetch = async (): Promise<RawEvent[]> => {
         // only what is online or actually in India.
         if (!isInScope({ isOnline, city: venue, venue })) continue;
 
+        // MLH events carry a real venue in the payload, and MLH genuinely is
+        // the organiser for its own events — unlike Devfolio and Hack2skill,
+        // where the platform is only the marketplace.
+        const address = e.venueAddress;
+        // `location` usually already reads "City, State", so appending the
+        // structured address yields "Ghaziabad, Uttar Pradesh, Ghaziabad,
+        // Uttar Pradesh, IN". Keep a part only if the text so far does not
+        // already contain it — an exact-match set is not enough, because the
+        // two sources are fragments of the same string, not duplicates of it.
+        const venueFull = [e.location, address?.city, address?.state, address?.country]
+          .map((p) => plain(p, 60))
+          .filter(Boolean)
+          .reduce<string[]>((acc, part) => {
+            const lower = acc.join(" ").toLowerCase();
+            return lower.includes(part.toLowerCase()) ? acc : [...acc, part];
+          }, [])
+          .join(", ")
+          .slice(0, 200);
+
+        const details: EventDetails = {
+          ...(venueFull ? { organiser: "Major League Hacking", venue: venueFull } : {}),
+          // MLH publishes a date range and nothing else about entry.
+          noDeadlineReason: "Major League Hacking publishes no registration deadline for this event.",
+        };
+
         out.push({
           source: "mlh",
           sourceId,
@@ -474,6 +627,7 @@ const mlhFetch = async (): Promise<RawEvent[]> => {
           link: safeUrl(e.websiteUrl, MLH_BASE) ?? `${MLH_BASE}/events/${e.slug ?? ""}`,
           imageUrl: safeUrl(e.backgroundUrl, MLH_BASE) ?? undefined,
           eventType: "hackathon",
+          details,
         });
       } catch {
         // Skip.

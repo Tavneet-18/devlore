@@ -19,12 +19,14 @@ export interface SchemaCapabilities {
   sourceIdentity: boolean;
   /** The IngestRun table exists. */
   ingestRun: boolean;
+  /** Event.details, brief, whoCanJoin and briefedAt exist. */
+  eventDetails: boolean;
 }
 
 let cached: SchemaCapabilities | null = null;
 let inFlight: Promise<SchemaCapabilities> | null = null;
 
-const UNKNOWN: SchemaCapabilities = { sourceIdentity: false, ingestRun: false };
+const UNKNOWN: SchemaCapabilities = { sourceIdentity: false, ingestRun: false, eventDetails: false };
 
 async function probe(): Promise<SchemaCapabilities> {
   try {
@@ -43,6 +45,7 @@ async function probe(): Promise<SchemaCapabilities> {
     return {
       sourceIdentity: present.has("sourceId") && present.has("deadlineKind"),
       ingestRun: tables.length > 0,
+      eventDetails: ["details", "brief", "whoCanJoin", "briefedAt"].every((c) => present.has(c)),
     };
   } catch {
     // If the probe itself fails, assume the old schema rather than issuing

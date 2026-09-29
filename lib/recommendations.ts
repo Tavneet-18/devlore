@@ -2,7 +2,16 @@ import type { Event } from "@prisma/client";
 import { db } from "./db";
 import { parseTags } from "./events";
 
-function scoreSimilarity(a: Event, b: Event): number {
+/**
+ * The fields the similarity score actually reads.
+ *
+ * Declared structurally rather than as `Event` so it accepts both a full Prisma
+ * row and one from `eventSelect()`, which omits the migration-004 columns until
+ * they exist. Scoring has no business reading a brief.
+ */
+type Scored = Pick<Event, "id" | "status" | "tags" | "eventType" | "beginnerFriendly" | "isOnline" | "city" | "viewCount">;
+
+function scoreSimilarity(a: Scored, b: Scored): number {
   let score = 0;
   const aTags = new Set(parseTags(a));
   const bTags = new Set(parseTags(b));
@@ -15,7 +24,7 @@ function scoreSimilarity(a: Event, b: Event): number {
 }
 
 /** Events most similar to `event`, excluding the event itself. */
-export function similarEvents(event: Event, all: Event[], limit = 3): Event[] {
+export function similarEvents(event: Scored, all: Scored[], limit = 3): Scored[] {
   return all
     .filter((e) => e.id !== event.id && e.status === "APPROVED")
     .map((e) => ({ e, s: scoreSimilarity(event, e) }))

@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
-import { toEventDTO } from "@/lib/events";
+import { toEventDTO, eventSelect, asSelected } from "@/lib/events";
 import { EVENT_TYPES } from "@/lib/constants";
 import { getEnhancer } from "@/lib/ai";
 import { getViewerId } from "@/lib/session";
@@ -82,9 +82,12 @@ export async function GET(request: NextRequest) {
   if (mode === "offline") where.isOnline = false;
   if (beginner) where.beginnerFriendly = true;
 
+  // Explicit select, so a deploy that lands before migration 004 does not
+  // break the whole listing. See eventSelect in lib/events.ts.
   const [events, bookmarked] = await Promise.all([
     db.event.findMany({
       where,
+      select: await eventSelect(),
       orderBy: [{ date: "asc" }, { createdAt: "desc" }],
     }),
     viewerId
@@ -121,7 +124,7 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     count: events.length,
     filters: { city, type, mode, timeframe, beginner, q },
-    events: events.map((e) => toEventDTO(e, bookmarkedIds, refsByEvent.get(e.id))),
+    events: asSelected(events).map((e) => toEventDTO(e, bookmarkedIds, refsByEvent.get(e.id))),
     sources: ["devpost", "unstop", "gdg", "manual"].map((s) => `${liveMode ? "live" : "mock"}:${s}`),
   });
 }

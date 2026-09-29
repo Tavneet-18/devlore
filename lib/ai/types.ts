@@ -1,3 +1,5 @@
+import type { EventDetails } from "../event-details";
+
 export interface AIEnhancement {
   summary: string;
   tags: string[];
@@ -11,6 +13,9 @@ export interface AIEnhancer {
 }
 
 export type DeadlineKind = "registration" | "event-end";
+
+/** Re-exported so adapters can import the details shape from one place. */
+export type { EventDetails } from "../event-details";
 
 export interface RawEvent {
   source: string;
@@ -38,6 +43,14 @@ export interface RawEvent {
   link?: string;
   imageUrl?: string;
   eventType?: string;
+  /**
+   * Structured facts the source actually publishes, for the detail page.
+   *
+   * Every field is optional and none is defaulted: a source that does not
+   * publish a prize leaves `prize` undefined, and the page omits the row. See
+   * lib/event-details.ts.
+   */
+  details?: EventDetails;
 }
 
 export interface DiscoverySource {

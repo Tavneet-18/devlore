@@ -63,6 +63,35 @@ export function isTrustedSource(source: string): boolean {
 }
 
 /**
+ * Display names for the ingest source ids.
+ *
+ * The raw id is a database key ("hack2skill", "mlh"). Printing it on a page
+ * would be leaking an implementation detail at the reader, so every place that
+ * names a source to a human goes through this. An unknown id falls back to a
+ * title-cased form of itself rather than disappearing, so a new adapter is
+ * still legible before anyone adds it here.
+ */
+const SOURCE_LABELS: Record<string, string> = {
+  devpost: "Devpost",
+  unstop: "Unstop",
+  gdg: "Google Developer Groups",
+  meetup: "Meetup",
+  devfolio: "Devfolio",
+  hack2skill: "Hack2skill",
+  wemakedevs: "WeMakeDevs",
+  mlh: "Major League Hacking",
+  manual: "Submitted directly",
+};
+
+export function sourceLabel(source: string): string {
+  const key = source.toLowerCase().trim();
+  return (
+    SOURCE_LABELS[key] ??
+    key.charAt(0).toUpperCase() + key.slice(1).replace(/[-_]/g, " ")
+  );
+}
+
+/**
  * Decide the moderation status for an ingested event.
  *
  * Auto-published when the event came from a platform that vets its listings,

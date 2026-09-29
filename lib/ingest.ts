@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { generateBrief } from "./ai/brief";
 import type { Prisma } from "@prisma/client";
 import { db } from "./db";
 import { discoverEvents } from "./ai/discovery";
@@ -50,6 +51,7 @@ function hashContent(event: {
   date: string;
   city?: string;
   link?: string;
+  details?: unknown;
 }): string {
   return createHash("sha1")
     .update(
@@ -59,9 +61,27 @@ function hashContent(event: {
         event.date,
         event.city ?? "",
         event.link ?? "",
+        // The structured facts are hashed too. A platform that later publishes
+        // a prize, or corrects a team size, must rewrite the detail page —
+        // without this the row would be treated as unchanged and the correction
+        // would never land. Key order is normalised so two runs producing the
+        // same object in the same order agree.
+        stableStringify(event.details),
       ].join("|")
     )
     .digest("hex");
+}
+
+/** JSON with object keys sorted, so key order cannot move the hash. */
+function stableStringify(value: unknown): string {
+  if (value === null || value === undefined) return "";
+  if (typeof value !== "object") return String(value);
+  if (Array.isArray(value)) return `[${value.map(stableStringify).join(",")}]`;
+  const entries = Object.entries(value as Record<string, unknown>)
+    .filter(([, v]) => v !== undefined)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([k, v]) => `${k}:${stableStringify(v)}`);
+  return `{${entries.join(",")}}`;
 }
 
 /** Fallback identity for rows with no platform id (e.g. manual submissions). */
@@ -94,7 +114,7 @@ interface UpsertOutcome {
 async function upsertEvent(
   raw: RawEvent,
   enhancer: { enhance: (t: string, d: string, l?: string) => Promise<{ summary: string; tags: string[]; beginnerFriendly: boolean; isOnline: boolean }> },
-  caps: { sourceIdentity: boolean; ingestRun: boolean }
+  caps: { sourceIdentity: boolean; ingestRun: boolean; eventDetails: boolean }
 ): Promise<UpsertOutcome> {
   const date = new Date(raw.date);
   if (Number.isNaN(date.getTime())) return { created: false, updated: false, skipped: true };
@@ -192,6 +212,13 @@ async function upsertEvent(
   // its content hash moved.
   const enhancement = await enhancer.enhance(raw.title, raw.description, raw.link);
 
+  // The brief. Measured across all four new adapters: none of them publishes
+  // any prose at all, so `canBrief` is false and this costs nothing and
+  // produces nothing today. It is wired in rather than dropped because the
+  // guard is cheap and a source that starts publishing a description should
+  // light this up without another migration.
+  const brief = await generateBrief(raw.title, raw.details ?? null, raw.city ?? null);
+
   const data = {
     title: raw.title,
     description: raw.description,
@@ -213,6 +240,18 @@ async function upsertEvent(
     rawPayload,
     ...(caps.sourceIdentity
       ? { sourceId: raw.sourceId ?? null, deadlineKind: raw.deadlineKind ?? null }
+      : {}),
+    // Migration 004. Omitted entirely until its columns exist, so a deploy that
+    // lands before the migration does not break the ingest.
+    ...(caps.eventDetails
+      ? {
+          details: (raw.details ?? null) as Prisma.InputJsonValue,
+          brief: brief.brief,
+          whoCanJoin: brief.whoCanJoin,
+          // Null, not a timestamp, when there was nothing to generate — so a
+          // later run can tell "never generated" from "generated as blank".
+          briefedAt: brief.brief || brief.whoCanJoin ? new Date() : null,
+        }
       : {}),
   };
 

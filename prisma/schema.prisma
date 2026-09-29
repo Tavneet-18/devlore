@@ -62,10 +62,20 @@ model Event {
   @@index([source, fetchedAt])
   @@index([hash])
   @@index([title])
+  // Supports the "last checked" line on the detail page without a scan.
+  @@index([fetchedAt])
 
   // Manual submissions have a NULL sourceId, and Postgres treats NULLs as
   // distinct in a unique index, so they must not collide with each other.
   @@unique([source, sourceId])
+
+  // Migration 004. Note: `deadlineKind` "event-end" means the source has no
+  // registration deadline, so the brief and the calendar button must both be
+  // keyed on the real deadline, not this field.
+  brief      String?
+  whoCanJoin String?
+  briefedAt  DateTime?
+  details    Json?
 }
 
 /**

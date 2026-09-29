@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { toEventDTO } from "@/lib/events";
+import { toEventDTO, eventSelect, asSelected } from "@/lib/events";
 
 /**
  * GET /api/admin/events
@@ -15,11 +15,12 @@ export async function GET(request: Request) {
 
   const events = await db.event.findMany({
     where,
+    select: await eventSelect(),
     orderBy: [{ status: "asc" }, { createdAt: "desc" }],
   });
 
   return NextResponse.json({
     count: events.length,
-    events: events.map((e) => toEventDTO(e)),
+    events: asSelected(events).map((e) => toEventDTO(e)),
   });
 }

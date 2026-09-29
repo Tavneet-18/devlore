@@ -7,6 +7,30 @@ import { EVENT_TYPE_LABELS } from "@/lib/constants";
 import { countdown, deadlineLabel, eventPhase } from "@/lib/format";
 import { useNow } from "@/lib/use-now";
 import { accentFor, accentTextFor } from "./EventCard";
+import { eventOneLiner } from "@/lib/event-summary";
+
+/**
+ * The line shown on an axis card and in its native tooltip.
+ *
+ * Same source as the index rows, so the two surfaces cannot drift apart. The
+ * facts only — the date is already on the card as a countdown, and repeating
+ * it here would crowd a card that is deliberately small.
+ */
+function axisSkim(event: EventDTO): string | null {
+  if (event.brief) return event.brief;
+  const line = eventOneLiner({
+    title: event.title,
+    date: event.date,
+    endDate: event.endDate,
+    deadlineKind: event.deadlineKind,
+    isOnline: event.isOnline,
+    city: event.city,
+    details: event.details,
+    whoCanJoin: event.whoCanJoin,
+  });
+  // Drop the leading date clause: the countdown above already says it.
+  return line.includes(" · ") ? line.slice(line.indexOf(" · ") + 3) : line;
+}
 
 /** Platform names, so a card says where the listing came from. */
 const SOURCE_LABELS: Record<string, string> = {
@@ -276,6 +300,18 @@ export function TimeAxis({ events, now: nowIso }: { events: EventDTO[]; now: str
                   <p className="mt-0.5 truncate text-[10px] uppercase tracking-[0.1em] text-faint">
                     {p.event.isOnline ? "Online" : p.event.city ?? "TBA"}
                   </p>
+                  {/* The skim line, so a card carries enough to decide on
+                      without opening it. Rendered inside a native title
+                      attribute as well, which is what actually appears as a
+                      tooltip on desktop. */}
+                  {axisSkim(p.event) && (
+                    <p
+                      className="mt-1 line-clamp-2 text-[10px] leading-snug text-faint/80"
+                      title={axisSkim(p.event) ?? undefined}
+                    >
+                      {axisSkim(p.event)}
+                    </p>
+                  )}
                 </Link>
               </div>
             );

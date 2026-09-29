@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { toEventDTO } from "@/lib/events";
+import { toEventDTO, eventSelect, asSelected } from "@/lib/events";
 import { EVENT_TYPES } from "@/lib/constants";
 import { getViewerId } from "@/lib/session";
 
@@ -15,7 +15,9 @@ export async function GET(
   const { id } = await params;
   const viewerId = await getViewerId();
 
-  const event = await db.event.findUnique({ where: { id } });
+  // Explicit select: a bare findUnique would break against a database where
+  // migration 004 has not been applied yet.
+  const event = await db.event.findUnique({ where: { id }, select: await eventSelect() });
   if (!event) return NextResponse.json({ error: "Event not found" }, { status: 404 });
 
   if (viewerId) {
@@ -23,12 +25,18 @@ export async function GET(
     await db.event.update({ where: { id }, data: { viewCount: { increment: 1 } } });
   }
 
-  const bookmark = viewerId
-    ? await db.bookmark.findUnique({ where: { viewerId_eventId: { viewerId, eventId: id } } })
-    : null;
+  const [bookmark, refs] = await Promise.all([
+    viewerId
+      ? db.bookmark.findUnique({ where: { viewerId_eventId: { viewerId, eventId: id } } })
+      : null,
+    // Tolerates the pre-migration schema, where this table does not exist.
+    db.eventSourceRef
+      .findMany({ where: { eventId: id }, select: { source: true, link: true } })
+      .catch(() => []),
+  ]);
 
   return NextResponse.json({
-    event: toEventDTO(event, new Set(bookmark ? [id] : [])),
+    event: toEventDTO(asSelected([event])[0], new Set(bookmark ? [id] : []), refs),
   });
 }
 
@@ -41,7 +49,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const existing = await db.event.findUnique({ where: { id } });
+  const existing = await db.event.findUnique({ where: { id }, select: { id: true } });
   if (!existing) return NextResponse.json({ error: "Event not found" }, { status: 404 });
 
   let body: Record<string, unknown>;
@@ -84,8 +92,12 @@ export async function PUT(
     return NextResponse.json({ error: "No valid fields to update" }, { status: 400 });
   }
 
-  const updated = await db.event.update({ where: { id }, data });
-  return NextResponse.json({ event: toEventDTO(updated) });
+  await db.event.update({ where: { id }, data });
+  const updated = await db.event.findUniqueOrThrow({
+    where: { id },
+    select: await eventSelect(),
+  });
+  return NextResponse.json({ event: toEventDTO(asSelected([updated])[0]) });
 }
 
 /**
