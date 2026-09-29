@@ -64,15 +64,21 @@ export function EventForm() {
     }
   }
 
-  async function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setSubmitting(true);
     setOutcome(null);
     try {
+      // Read the honeypot straight off the form. It is intentionally absent
+      // from FormState so it can never be prefilled or validated client-side.
+      const honeypotEl = e.currentTarget.elements.namedItem("website");
+      const honeypot =
+        honeypotEl instanceof HTMLInputElement ? honeypotEl.value : "";
+
       const res = await fetch("/api/events", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, website: honeypot }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Submission failed");
@@ -89,6 +95,25 @@ export function EventForm() {
 
   return (
     <form onSubmit={submit} className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+      {/*
+        Honeypot. Hidden from people and from assistive tech, never validated
+        client-side, and never rendered back. A bot that fills every field it
+        discovers trips this; a real submitter cannot see it, so it stays empty.
+        Kept off-screen rather than display:none, because some bots skip
+        hidden inputs entirely.
+      */}
+      <div aria-hidden className="absolute left-[-9999px] h-px w-px overflow-hidden">
+        <label htmlFor="website">Website</label>
+        <input
+          id="website"
+          name="website"
+          type="text"
+          tabIndex={-1}
+          autoComplete="off"
+          defaultValue=""
+        />
+      </div>
+
       <Field label="Title" className="sm:col-span-2">
         <input
           required

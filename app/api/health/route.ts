@@ -1,10 +1,68 @@
-// Temporary diagnostic: probes Supabase connectivity from the deployed env.
-// Reports WHAT failed (auth vs network vs missing table) without leaking secrets.
+import { NextResponse, type NextRequest } from "next/server";
 import { db } from "@/lib/db";
+import { verifyAdminToken, ADMIN_COOKIE } from "@/lib/admin-session";
+import { timingSafeEqual } from "node:crypto";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+/**
+ * GET /api/health
+ *
+ * Public callers get `{ ok: boolean }` and nothing else. The detailed report
+ * used to be served to anyone, which leaked the database host, the port, the
+ * pooler layout, the configured providers, whether a cron secret existed, and
+ * the shape of the database password. None of that belongs on an unauthenticated
+ * endpoint.
+ *
+ * The full report is now available to:
+ *   - a valid admin session cookie, or
+ *   - `x-health-key: <HEALTH_KEY>`
+ */
+
+/** Constant-time compare, so the key cannot be discovered byte by byte. */
+function keyMatches(provided: string, expected: string): boolean {
+  const a = Buffer.from(provided, "utf8");
+  const b = Buffer.from(expected, "utf8");
+  if (a.length !== b.length) return false;
+  return timingSafeEqual(a, b);
+}
+
+async function isAuthorised(request: NextRequest): Promise<boolean> {
+  const token = request.cookies.get(ADMIN_COOKIE)?.value;
+  if (await verifyAdminToken(token)) return true;
+
+  const expected = process.env.HEALTH_KEY;
+  if (expected) {
+    const provided = request.headers.get("x-health-key");
+    if (provided && keyMatches(provided, expected)) return true;
+  }
+  return false;
+}
+
+export async function GET(request: NextRequest) {
+  try {
+    await db.$queryRaw`SELECT 1 AS ok`;
+  } catch {
+    // Even the failure case is only a boolean on the public route.
+    return NextResponse.json({ ok: false }, { status: 200 });
+  }
+
+  if (!(await isAuthorised(request))) {
+    return NextResponse.json({ ok: true }, { status: 200 });
+  }
+
+  return NextResponse.json(await detailedReport(), { status: 200 });
+}
+
+/**
+ * Authenticated diagnostics.
+ *
+ * Hostnames and ports only, never credentials. The password *shape* reporting
+ * that used to live here is deliberately gone: character class and length of a
+ * secret is itself a disclosure, and the encoding question it answered has
+ * long since been settled.
+ */
+async function detailedReport() {
   const out: Record<string, unknown> = {};
 
   const redact = (u?: string) => {
@@ -17,50 +75,18 @@ export async function GET() {
     }
   };
 
+  out.ok = true;
   out.databaseUrl = redact(process.env.DATABASE_URL);
   out.directUrl = redact(process.env.DIRECT_URL);
   out.discoveryMode = process.env.DISCOVERY_MODE ?? "(unset)";
   out.aiProvider = process.env.AI_PROVIDER ?? "(unset)";
   out.hasCronSecret = Boolean(process.env.CRON_SECRET);
+  out.adminConfigured = Boolean(process.env.ADMIN_PASSWORD);
+  out.healthKeyConfigured = Boolean(process.env.HEALTH_KEY);
+  out.rateLimitDistributed = Boolean(
+    process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN
+  );
 
-  // Report only the SHAPE of the password, never its value, so we can tell
-  // whether special characters still need percent-encoding.
-  const inspectPassword = (url?: string) => {
-    if (!url) return { present: false as const };
-    const schemeEnd = url.indexOf("://");
-    const at = url.lastIndexOf("@");
-    if (schemeEnd === -1 || at === -1) return { present: false as const };
-    const authority = url.slice(schemeEnd + 3, at);
-    const colon = authority.indexOf(":");
-    if (colon === -1) return { present: false as const };
-    const raw = authority.slice(colon + 1);
-
-    // Legal in a password, but MUST be percent-encoded in a connection string.
-    const found = Array.from(new Set(raw.match(/[@:#/?[\]]/g) ?? []));
-
-    return {
-      present: true as const,
-      length: raw.length,
-      hasUnencodedSpecial: found.length > 0,
-      specialCharsFound: found,
-    };
-  };
-
-  out.databasePassword = inspectPassword(process.env.DATABASE_URL);
-  out.directPassword = inspectPassword(process.env.DIRECT_URL);
-
-  try {
-    await db.$queryRaw`SELECT 1 AS ok`;
-    out.connectivity = "OK";
-  } catch (e) {
-    const err = e as { code?: string; message?: string };
-    out.connectivity = "FAILED";
-    out.errorCode = err.code ?? "unknown";
-    // Prisma error codes are safe to expose and tell us exactly what to fix.
-    out.errorMessage = String(err.message ?? err).slice(0, 400);
-  }
-
-  // Check whether the tables exist (separate from connectivity).
   try {
     const rows = await db.$queryRaw<{ count: bigint }[]>`
       SELECT count(*)::bigint AS count FROM information_schema.tables
@@ -73,9 +99,8 @@ export async function GET() {
     out.tableCheck = `FAILED: ${String((e as Error).message).slice(0, 200)}`;
   }
 
-  // Verify the columns the app selects actually exist. A missing column makes
-  // every event query fail at runtime while connectivity still looks healthy,
-  // so surface it here instead of as an unexplained 500.
+  // A missing column makes every event query fail at runtime while connectivity
+  // still looks healthy, so it is worth naming explicitly.
   try {
     const cols = await db.$queryRaw<{ column_name: string }[]>`
       SELECT column_name FROM information_schema.columns
@@ -94,5 +119,5 @@ export async function GET() {
     out.columnCheck = `FAILED: ${String((e as Error).message).slice(0, 200)}`;
   }
 
-  return Response.json(out, { status: 200 });
+  return out;
 }

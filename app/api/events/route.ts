@@ -5,6 +5,8 @@ import { toEventDTO } from "@/lib/events";
 import { EVENT_TYPES } from "@/lib/constants";
 import { getEnhancer } from "@/lib/ai";
 import { getViewerId } from "@/lib/session";
+import { rateLimit } from "@/lib/rate-limit";
+import { clientKey } from "@/lib/request-identity";
 
 export const dynamic = "force-dynamic";
 
@@ -105,14 +107,40 @@ export async function GET(request: NextRequest) {
  * POST /api/events
  * Organizer "List Your Event". Store with status=PENDING and enhance with AI.
  * Body: { title, description, date, city?, isOnline?, eventType, organizer,
- *         link? }
+ *         link?, website? }
+ *
+ * `website` is a honeypot: it is hidden from humans and never rendered, so a
+ * bot that helpfully fills in every field it finds gets rejected while real
+ * submitters are unaffected. It is validated before any database work.
  */
 export async function POST(request: NextRequest) {
+  const limited = await rateLimit(`submit:${clientKey(request.headers)}`, {
+    limit: 5,
+    windowSeconds: 600,
+  });
+  if (!limited.success) {
+    return NextResponse.json(
+      { error: "Too many submissions. Please try again later." },
+      { status: 429, headers: { "Retry-After": String(limited.resetSeconds) } }
+    );
+  }
+
   let body: Record<string, unknown>;
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+
+  // Honeypot. Answer as though accepted so a bot learns nothing, but write
+  // nothing.
+  if (typeof body.website === "string" && body.website.trim() !== "") {
+    return NextResponse.json(
+      {
+        message: "Event submitted. It will appear once approved by a moderator.",
+      },
+      { status: 201 }
+    );
   }
 
   const title = String(body.title ?? "").trim();

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { timingSafeEqual } from "node:crypto";
+import { createHash, timingSafeEqual } from "node:crypto";
 import { ingestAll } from "@/lib/ingest";
 
 export const dynamic = "force-dynamic";
@@ -8,33 +8,36 @@ export const maxDuration = 300;
 const DEFAULT_CITIES = ["Bangalore", "Mumbai", "Delhi", "Hyderabad", "Pune", "Chennai"];
 
 /**
- * Vercel Cron calls GET /api/cron/ingest and does NOT attach an
- * Authorization header — it authenticates the request to the deployment
- * itself. So we accept either:
- *   1. `Authorization: Bearer <CRON_SECRET>` (manual curl / GitHub Action), or
- *   2. `?secret=<CRON_SECRET>`
- * and only require a secret on non-Vercel origins, so the scheduled run works
- * out of the box while the endpoint is not open to the public internet.
+ * Vercel Cron calls GET /api/cron/ingest with `Authorization: Bearer
+ * <CRON_SECRET>` automatically, but only when a CRON_SECRET environment
+ * variable exists on the project. So requiring that header is both safe and
+ * functional.
+ *
+ * Two escape hatches used to exist here and both have been removed:
+ *   - `?secret=<value>` in the query string, which leaked the secret into
+ *     access logs, browser history and referrer headers;
+ *   - "allow unauthenticated when VERCEL=1", which made the endpoint an open
+ *     write API for anyone who could reach the deployment.
+ *
+ * If CRON_SECRET is unset the endpoint is closed, not open.
  */
 function isAuthorized(request: Request): boolean {
   const secret = process.env.CRON_SECRET;
-  if (!secret) {
-    // No secret configured: only allow when running on Vercel itself,
-    // otherwise the endpoint would be an open write API.
-    return process.env.VERCEL === "1";
-  }
+  if (!secret) return false;
 
-  const provided =
-    request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ??
-    new URL(request.url).searchParams.get("secret") ??
-    "";
+  const header = request.headers.get("authorization");
+  if (!header) return false;
 
+  const match = /^Bearer\s+(.+)$/i.exec(header.trim());
+  if (!match) return false;
+
+  const provided = match[1].trim();
   if (!provided) return false;
 
-  // Constant-time compare to avoid leaking the secret via timing.
-  const a = Buffer.from(provided);
-  const b = Buffer.from(secret);
-  if (a.length !== b.length) return false;
+  // Hash first so the compared buffers are always the same length; returning
+  // early on a length mismatch would itself leak the secret's length.
+  const a = createHash("sha256").update(provided, "utf8").digest();
+  const b = createHash("sha256").update(secret, "utf8").digest();
   return timingSafeEqual(a, b);
 }
 
