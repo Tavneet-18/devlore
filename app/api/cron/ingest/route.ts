@@ -53,8 +53,9 @@ function citiesFrom(body: unknown): string[] {
 
 async function run(cities: string[]) {
   const startedAt = Date.now();
-  const results = await ingestAll(cities);
-  const total = results.reduce(
+  const { cities: cityResults, sources: sourceStats } = await ingestAll(cities);
+
+  const total = cityResults.reduce(
     (acc, r) => ({
       upserted: acc.upserted + r.upserted,
       approved: acc.approved + r.approved,
@@ -64,11 +65,26 @@ async function run(cities: string[]) {
     { upserted: 0, approved: 0, pending: 0, errors: 0 }
   );
 
+  // City-scoped and city-agnostic sources are reported separately, because
+  // they are different kinds of thing: six Indian cities versus one global
+  // listing per platform.
+  const sourceTotal = sourceStats.reduce(
+    (acc, s) => ({
+      fetched: acc.fetched + s.fetched,
+      created: acc.created + s.created,
+      updated: acc.updated + s.updated,
+      skipped: acc.skipped + s.skipped,
+      errors: acc.errors + s.errors,
+    }),
+    { fetched: 0, created: 0, updated: 0, skipped: 0, errors: 0 }
+  );
+
   return NextResponse.json({
-    ok: total.errors === 0,
+    ok: total.errors === 0 && sourceTotal.errors === 0,
     cities,
     total,
-    results,
+    sources: { total: sourceTotal, perSource: sourceStats },
+    results: cityResults,
     durationMs: Date.now() - startedAt,
     finishedAt: new Date().toISOString(),
   });

@@ -18,7 +18,7 @@
  */
 
 import { writeFile } from "node:fs/promises";
-import { ingestAll, ingestCity } from "../lib/ingest";
+import { ingestAll, ingestCity, type SourceStat } from "../lib/ingest";
 import { discoverEvents } from "../lib/ai/discovery";
 
 const CITIES = ["Bangalore", "Mumbai", "Delhi", "Hyderabad", "Pune", "Chennai"];
@@ -70,12 +70,34 @@ async function main() {
     return;
   }
 
-  const results = city ? [await ingestCity(city)] : await ingestAll(cities);
+  // Single-city runs only exercise the city-scoped sources; a full run also
+  // sweeps the city-agnostic ones, which is why the shapes differ.
+  let results;
+  let sourceStats: SourceStat[] = [];
+  if (city) {
+    results = [await ingestCity(city)];
+  } else {
+    const full = await ingestAll(cities);
+    results = full.cities;
+    sourceStats = full.sources;
+  }
+
   for (const r of results) {
     console.log(
       `  ${r.city.padEnd(10)} found=${r.found} upserted=${r.upserted} ` +
         `approved=${r.approved} pending=${r.pending} errors=${r.errors}`
     );
+  }
+
+  if (sourceStats.length) {
+    console.log("  -- city-agnostic sources --");
+    for (const s of sourceStats) {
+      console.log(
+        `  ${s.source.padEnd(12)} fetched=${s.fetched} created=${s.created} ` +
+          `updated=${s.updated} skipped=${s.skipped} errors=${s.errors}` +
+          (s.errorSample ? ` (${s.errorSample.slice(0, 60)})` : "")
+      );
+    }
   }
 
   const total = results.reduce(

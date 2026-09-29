@@ -1,0 +1,538 @@
+{
+  "_meta": {
+    "source": "wemakedevs",
+    "method": "b: Next.js RSC flight payload (self.__next_f.push)",
+    "url": "https://www.wemakedevs.org/hackathons",
+    "captured": "2026-09-29T10:51:35.047Z",
+    "cardCount": 29,
+    "note": "No registration-deadline field exists in the payload. Only startDate/endDate. The 3 upcoming cards are kept as the realistic sample."
+  },
+  "cards": [
+    {
+      "id": "24e002ea-42d8-412a-bd68-a57e73dc9841",
+      "title": "Bharat Builds Tour",
+      "location": "Hybrid",
+      "formats": [
+        "online",
+        "offline"
+      ],
+      "prize": "Prizes worth ₹1 Crore and fast-track job interviews at AWS",
+      "image": "https://cdn.wmdhq.co/hackathon-cards/a46da2fc-3b3f-42ce-8116-722e44c0d85c.webp",
+      "href": "/aws",
+      "isExternal": false,
+      "startDate": "2026-11-30T21:54:00Z",
+      "endDate": "2026-12-29T21:54:00Z",
+      "date": "Nov 30 – Dec 29",
+      "displayDateOverride": "Sept - Dec",
+      "hackathonSlug": null,
+      "seriesSlug": "aws-bharat-builds-tour"
+    },
+    {
+      "id": "41c2459b-3ff1-4af7-8060-99be403c08ca",
+      "title": "Environmental Hacks",
+      "location": "Hybrid",
+      "formats": [
+        "online",
+        "offline"
+      ],
+      "prize": "₹20 Lakh in prizes and Fast Track to Amazon Job Interviews",
+      "image": "https://cdn.wmdhq.co/hackathon-cards/fd5781a8-526e-4cfc-b9af-9e94e4c92c27.webp",
+      "href": "/aws/env",
+      "isExternal": false,
+      "startDate": "2026-10-08T02:30:00Z",
+      "endDate": "2026-10-11T14:30:00Z",
+      "date": "Oct 8–11",
+      "displayDateOverride": null,
+      "hackathonSlug": "env",
+      "seriesSlug": null
+    },
+    {
+      "id": "b6e3f3a6-e064-46eb-8536-cd75b5dcd35e",
+      "title": "Graph Hacks: Building Next-Gen RAG",
+      "location": "Remote",
+      "formats": [
+        "online"
+      ],
+      "prize": "$$10,000 across three tracks",
+      "image": "https://cdn.wmdhq.co/hackathon-cards/dd0071c2-babf-4dd5-9239-06df6b959f7e.webp",
+      "href": "/hackathons/falkordb",
+      "isExternal": false,
+      "startDate": "2026-10-29T18:31:00Z",
+      "endDate": "2026-10-31T07:29:00Z",
+      "date": "Oct 29–31",
+      "displayDateOverride": "October 2026",
+      "hackathonSlug": null,
+      "seriesSlug": null
+    },
+    {
+      "id": "8ce5eaa3-ebf5-442f-b2da-c1c7c2f349a4",
+      "title": "First Commit",
+      "location": "Hybrid",
+      "formats": [
+        "online",
+        "offline"
+      ],
+      "prize": "₹20 Lakh in prizes and Fast Track to Amazon Job Interviews",
+      "image": "https://cdn.wmdhq.co/hackathon-cards/3b9a0138-ee66-4e13-935a-30914f1960eb.webp",
+      "href": "/aws/first-commit",
+      "isExternal": false,
+      "startDate": "2026-09-17T02:30:00Z",
+      "endDate": "2026-09-21T05:30:00Z",
+      "date": "Sep 17–21",
+      "displayDateOverride": null,
+      "hackathonSlug": "first-commit",
+      "seriesSlug": null
+    },
+    {
+      "id": "5764b924-49ca-4e3e-9125-031b50f5f95d",
+      "title": "The Rote Playoffs Hackathon",
+      "location": "Remote",
+      "formats": [
+        "online"
+      ],
+      "prize": "$$5,000 in prizes, including a MacBook Pro",
+      "image": "https://cdn.wmdhq.co/hackathon-cards/ed3020e9-3cbd-4d5e-a73d-cd67dbb466e1.webp",
+      "href": "https://luma.com/rotehack",
+      "isExternal": true,
+      "startDate": "2026-09-01T07:00:00Z",
+      "endDate": "2026-09-06T19:00:00Z",
+      "date": "Sep 1–6",
+      "displayDateOverride": null,
+      "hackathonSlug": null,
+      "seriesSlug": null
+    },
+    {
+      "id": "72b74880-1e4e-4ef8-94e1-a19cd385449f",
+      "title": "The Agent Harness Hackathon",
+      "location": "Hybrid",
+      "formats": [
+        "online",
+        "offline"
+      ],
+      "prize": "$$10,000 in prizes, including an NVIDIA DGX Spark",
+      "image": "https://cdn.wmdhq.co/hackathon-cards/66f73251-c409-4844-bb11-a1b0ec6c3d75.webp",
+      "href": "/hackathons/trueforge",
+      "isExternal": false,
+      "startDate": "2026-08-24T07:00:00Z",
+      "endDate": "2026-08-30T19:00:00Z",
+      "date": "Aug 24–30",
+      "displayDateOverride": null,
+      "hackathonSlug": null,
+      "seriesSlug": null
+    },
+    {
+      "id": "a7a817c2-6cfe-4a83-ab76-91876054780b",
+      "title": "AI Engineer Mixer",
+      "location": "Bangalore",
+      "formats": [
+        "offline"
+      ],
+      "prize": "Full day of building, breaking and rethinking AI",
+      "image": "https://cdn.wmdhq.co/hackathon-cards/45740ab3-dcec-4fbf-ab59-b38558c39265.webp",
+      "href": "/hackathons/ai-engineer-mixer",
+      "isExternal": false,
+      "startDate": "2026-08-30T04:30:00Z",
+      "endDate": "2026-08-30T12:30:00Z",
+      "date": "Aug 30",
+      "displayDateOverride": null,
+      "hackathonSlug": null,
+      "seriesSlug": null
+    },
+    {
+      "id": "6c05a716-ce8d-40d0-ab8b-7efb1ed5fe1a",
+      "title": "Roast My PR",
+      "location": "San Francisco",
+      "formats": [
+        "offline"
+      ],
+      "prize": "Can you write code that is clean, readable and scalable?",
+      "image": "https://cdn.wmdhq.co/hackathon-cards/e863da8d-b260-4faf-91c9-7a63a5a81802.webp",
+      "href": "/hackathons/roast-my-pr",
+      "isExternal": false,
+      "startDate": "2026-07-26T14:30:00Z",
+      "endDate": "2026-08-26T12:30:00Z",
+      "date": "Jul 26 – Aug 26",
+      "displayDateOverride": null,
+      "hackathonSlug": null,
+      "seriesSlug": null
+    },
+    {
+      "id": "010ec6d1-a517-4bc6-80ae-8583326ef9bb",
+      "title": "Into the Scrape-Verse",
+      "location": "Remote",
+      "formats": [
+        "online"
+      ],
+      "prize": "$$15,000 in prizes, including an NVIDIA DGX Spark",
+      "image": "https://cdn.wmdhq.co/hackathon-cards/f2dbaecb-45fd-4955-bb1c-6c6d577a0b2a.webp",
+      "href": "/hackathons/scrape-verse",
+      "isExternal": false,
+      "startDate": "2026-08-17T02:30:00Z",
+      "endDate": "2026-08-23T18:29:00Z",
+      "date": "Aug 17–23",
+      "displayDateOverride": null,
+      "hackathonSlug": null,
+      "seriesSlug": null
+    },
+    {
+      "id": "495d75e1-c7dc-4c31-ab1e-fa197b9cf794",
+      "title": "Zero Downtime Hackathon",
+      "location": "San Francisco, CA",
+      "formats": [
+        "offline"
+      ],
+      "prize": "NVIDIA DGX Spark Supercomputer + Keychron Keyboards",
+      "image": "https://cdn.wmdhq.co/hackathon-cards/71f0ce6b-6993-4d57-940e-f0424e4884d1.webp",
+      "href": "https://luma.com/zero-downtime",
+      "isExternal": true,
+      "startDate": "2026-08-22T16:00:00Z",
+      "endDate": "2026-08-23T01:00:00Z",
+      "date": "Aug 22–23",
+      "displayDateOverride": null,
+      "hackathonSlug": "zerops",
+      "seriesSlug": null
+    },
+    {
+      "id": "495670cc-05e9-4b8e-b71c-0f0b667702f8",
+      "title": "The Zerops Challenge",
+      "location": "Remote",
+      "formats": [
+        "online"
+      ],
+      "prize": "MacBook Neo + $5,000 in Zerops credits",
+      "image": "https://cdn.wmdhq.co/hackathon-cards/7fe39fd7-4b6a-4980-bc0d-0985722fee03.webp",
+      "href": "/hackathons/zerops",
+      "isExternal": false,
+      "startDate": "2026-08-05T00:30:00Z",
+      "endDate": "2026-08-10T18:29:00Z",
+      "date": "Aug 5–10",
+      "displayDateOverride": null,
+      "hackathonSlug": null,
+      "seriesSlug": null
+    },
+    {
+      "id": "0ccb132e-08f8-4d72-95e3-520cb89a13ed",
+      "title": "Agents of SigNoz",
+      "location": "Remote",
+      "formats": [
+        "online"
+      ],
+      "prize": "MacBook Air, iPad Air & Job Interviews",
+      "image": "https://cdn.wmdhq.co/hackathon-cards/8bb4d537-99ad-44e6-848c-61b2aa299796.webp",
+      "href": "https://archive.wemakedevs.org/hackathons/signoz",
+      "isExternal": true,
+      "startDate": "2026-07-20T00:00:00Z",
+      "endDate": "2026-07-27T00:00:00Z",
+      "date": "Jul 20–27",
+      "displayDateOverride": null,
+      "hackathonSlug": null,
+      "seriesSlug": null
+    },
+    {
+      "id": "fe8cea90-344c-4225-87d2-864f1c18daab",
+      "title": "The Hangover Part AI",
+      "location": "Remote",
+      "formats": [
+        "online"
+      ],
+      "prize": "$$10,000+ in prizes + Job Interviews",
+      "image": "https://cdn.wmdhq.co/hackathon-cards/5a85674c-5f85-4f20-94b4-34304662719d.webp",
+      "href": "https://archive.wemakedevs.org/hackathons/cognee",
+      "isExternal": true,
+      "startDate": "2026-06-29T00:00:00Z",
+      "endDate": "2026-07-05T18:29:00Z",
+      "date": "Jun 29 – Jul 5",
+      "displayDateOverride": null,
+      "hackathonSlug": null,
+      "seriesSlug": null
+    },
+    {
+      "id": "9f425234-5624-44d1-9b68-4ffe3a85931f",
+      "title": "Pirates of the Coral-bean",
+      "location": "Remote",
+      "formats": [
+        "online"
+      ],
+      "prize": "$$10,000+ in prizes",
+      "image": "https://cdn.wmdhq.co/hackathon-cards/3b68da57-2559-4e06-be06-3d2733e1cdcb.webp",
+      "href": "https://archive.wemakedevs.org/hackathons/coral",
+      "isExternal": true,
+      "startDate": "2026-05-25T02:30:00Z",
+      "endDate": "2026-05-31T18:29:00Z",
+      "date": "May 25–31",
+      "displayDateOverride": null,
+      "hackathonSlug": null,
+      "seriesSlug": null
+    },
+    {
+      "id": "b7e09e4c-6a3f-44f0-b76a-518483acfb83",
+      "title": "Back to the Metadata",
+      "location": "Remote",
+      "formats": [
+        "online"
+      ],
+      "prize": "$$7,000+ in prizes & Job interviews",
+      "image": "https://cdn.wmdhq.co/hackathon-cards/583fdaa6-e9c8-40ae-84ff-f4960cc587e9.webp",
+      "href": "https://archive.wemakedevs.org/hackathons/openmetadata",
+      "isExternal": true,
+      "startDate": "2026-04-17T00:00:00Z",
+      "endDate": "2026-04-27T00:00:00Z",
+      "date": "Apr 17–27",
+      "displayDateOverride": null,
+      "hackathonSlug": null,
+      "seriesSlug": null
+    },
+    {
+      "id": "a5756b53-e1b4-4b13-bfb0-06fc78da6868",
+      "title": "Vision Possible: Agent Protocol",
+      "location": "Remote",
+      "formats": [
+        "online"
+      ],
+      "prize": "$$4,000+ in prizes & Job interviews",
+      "image": "https://cdn.wmdhq.co/hackathon-cards/ccee2581-053f-403e-84f5-23f715ca216d.webp",
+      "href": "https://archive.wemakedevs.org/hackathons/vision",
+      "isExternal": true,
+      "startDate": "2026-02-23T00:00:00Z",
+      "endDate": "2026-03-01T12:45:00Z",
+      "date": "Feb 23 – Mar 1",
+      "displayDateOverride": null,
+      "hackathonSlug": null,
+      "seriesSlug": null
+    },
+    {
+      "id": "a6076226-42b2-4ea7-b216-3a040cd3206f",
+      "title": "Hack All February",
+      "location": "Remote",
+      "formats": [
+        "online"
+      ],
+      "prize": "Samsung Galaxy Flip 7 + $40,000 in prizes",
+      "image": "https://cdn.wmdhq.co/hackathon-cards/aab6f858-f114-4dd9-8923-ed6f27edf19a.webp",
+      "href": "https://archive.wemakedevs.org/hackathons/february",
+      "isExternal": true,
+      "startDate": "2026-01-31T18:30:00Z",
+      "endDate": "2026-02-28T06:30:00Z",
+      "date": "Jan 31 – Feb 28",
+      "displayDateOverride": "February 2026",
+      "hackathonSlug": null,
+      "seriesSlug": null
+    },
+    {
+      "id": "838b0681-6bb0-451f-9d0f-c33fe79b7679",
+      "title": "Automate me if you can",
+      "location": "Remote",
+      "formats": [
+        "online"
+      ],
+      "prize": "$$3,000+ in prizes & Job interviews",
+      "image": "https://cdn.wmdhq.co/hackathon-cards/4600a83f-1534-4943-bbaf-38e181b8b036.webp",
+      "href": "https://archive.wemakedevs.org/hackathons/accomplish",
+      "isExternal": true,
+      "startDate": "2026-02-16T02:30:00Z",
+      "endDate": "2026-02-22T18:29:00Z",
+      "date": "Feb 16–22",
+      "displayDateOverride": null,
+      "hackathonSlug": null,
+      "seriesSlug": null
+    },
+    {
+      "id": "7c818f06-f7d8-4ccf-b767-e13db88b343e",
+      "title": "2 Fast 2 MCP",
+      "location": "Remote",
+      "formats": [
+        "online"
+      ],
+      "prize": "$$10,000+ in prizes & Job interviews",
+      "image": "https://cdn.wmdhq.co/hackathon-cards/7a0266ef-c8cc-4d0f-b075-12bb687fc178.webp",
+      "href": "https://archive.wemakedevs.org/hackathons/2fast2mcp",
+      "isExternal": true,
+      "startDate": "2026-02-08T02:30:00Z",
+      "endDate": "2026-02-15T18:29:00Z",
+      "date": "Feb 8–15",
+      "displayDateOverride": null,
+      "hackathonSlug": null,
+      "seriesSlug": null
+    },
+    {
+      "id": "4ab2ac82-2dda-46b6-aae5-50248d0dda2e",
+      "title": "The UI Strikes Back",
+      "location": "Remote",
+      "formats": [
+        "online"
+      ],
+      "prize": "$$6,000+ in prizes & Job interviews",
+      "image": "https://cdn.wmdhq.co/hackathon-cards/58b9ecda-6a77-432f-b1c6-86f24dfaead3.webp",
+      "href": "https://archive.wemakedevs.org/hackathons/tambo",
+      "isExternal": true,
+      "startDate": "2026-02-02T02:30:00Z",
+      "endDate": "2026-02-07T18:29:00Z",
+      "date": "Feb 2–7",
+      "displayDateOverride": null,
+      "hackathonSlug": null,
+      "seriesSlug": null
+    },
+    {
+      "id": "28c7bf6b-b4e4-489a-8086-d253993dbe25",
+      "title": "Backend Reloaded",
+      "location": "Remote",
+      "formats": [
+        "online"
+      ],
+      "prize": "$$3,000+ in prizes & GSoC mentorship",
+      "image": "https://cdn.wmdhq.co/hackathon-cards/80542394-3406-42fe-b5a3-913c227b8726.webp",
+      "href": "https://archive.wemakedevs.org/hackathons/motiahack25",
+      "isExternal": true,
+      "startDate": "2025-12-15T02:30:00Z",
+      "endDate": "2025-12-21T14:30:00Z",
+      "date": "Dec 15–21, 2025",
+      "displayDateOverride": null,
+      "hackathonSlug": null,
+      "seriesSlug": null
+    },
+    {
+      "id": "d237cda7-5458-4f27-a059-70a7377fb04e",
+      "title": "AI Agents Assemble",
+      "location": "Remote",
+      "formats": [
+        "online"
+      ],
+      "prize": "$$20,000+ in cash prizes",
+      "image": "https://cdn.wmdhq.co/hackathon-cards/07562ce1-005c-4c97-a428-2624dd4a23dd.webp",
+      "href": "https://archive.wemakedevs.org/hackathons/assemblehack25",
+      "isExternal": true,
+      "startDate": "2025-12-08T02:30:00Z",
+      "endDate": "2025-12-14T14:30:00Z",
+      "date": "Dec 8–14, 2025",
+      "displayDateOverride": null,
+      "hackathonSlug": null,
+      "seriesSlug": null
+    },
+    {
+      "id": "5b3fb257-57c4-46a8-82ce-df93703c05b3",
+      "title": "MultilingualHack 2025",
+      "location": "Remote",
+      "formats": [
+        "online"
+      ],
+      "prize": "₹50,000+ in prizes + Lingo credits",
+      "image": "https://cdn.wmdhq.co/hackathon-cards/bebef793-8a1c-4c8e-9dc2-05514ccfffc5.webp",
+      "href": "https://archive.wemakedevs.org/hackathons/lingohack25",
+      "isExternal": true,
+      "startDate": "2025-11-13T02:30:00Z",
+      "endDate": "2025-11-16T18:29:00Z",
+      "date": "Nov 13–16, 2025",
+      "displayDateOverride": null,
+      "hackathonSlug": null,
+      "seriesSlug": null
+    },
+    {
+      "id": "9b47a0f6-d7bd-49c6-915e-541c76e17aa1",
+      "title": "FutureStack 2025",
+      "location": "Remote",
+      "formats": [
+        "online"
+      ],
+      "prize": "$$15,000+ across Cerebras, Meta & Docker",
+      "image": "https://cdn.wmdhq.co/hackathon-cards/47751f3a-1bc9-46f2-82db-8d1ada58d2e9.webp",
+      "href": "https://archive.wemakedevs.org/hackathons/futurestack25",
+      "isExternal": true,
+      "startDate": "2025-09-29T04:30:00Z",
+      "endDate": "2025-10-05T18:30:00Z",
+      "date": "Sep 29 – Oct 5, 2025",
+      "displayDateOverride": null,
+      "hackathonSlug": null,
+      "seriesSlug": null
+    },
+    {
+      "id": "4c4d589f-928c-4003-b0a6-da61fb4ffd1b",
+      "title": "AgentHack 2025",
+      "location": "Remote",
+      "formats": [
+        "online"
+      ],
+      "prize": "MacBook Pro, iPhone 16 & iPad Air",
+      "image": "https://cdn.wmdhq.co/hackathon-cards/300fe999-ffa7-4981-b62c-f641d170e501.webp",
+      "href": "https://archive.wemakedevs.org/hackathons/agenthack25",
+      "isExternal": true,
+      "startDate": "2025-08-20T04:30:00Z",
+      "endDate": "2025-08-25T16:30:00Z",
+      "date": "Aug 20–25, 2025",
+      "displayDateOverride": null,
+      "hackathonSlug": null,
+      "seriesSlug": null
+    },
+    {
+      "id": "72aeebc5-588e-4f98-a88f-41779724c674",
+      "title": "Kestra HackWeek",
+      "location": "Remote",
+      "formats": [
+        "online"
+      ],
+      "prize": "A week inside popular open source projects",
+      "image": "https://cdn.wmdhq.co/hackathon-cards/fb002009-d993-4b28-a42b-c96d20b76a64.webp",
+      "href": "https://luma.com/cc52l7pn",
+      "isExternal": true,
+      "startDate": "2025-06-17T00:00:00Z",
+      "endDate": "2025-06-22T23:59:00Z",
+      "date": "Jun 17–22, 2025",
+      "displayDateOverride": null,
+      "hackathonSlug": null,
+      "seriesSlug": null
+    },
+    {
+      "id": "ee6d6ee6-aedd-427f-b217-42bee94341f4",
+      "title": "HackFrost Hackathon",
+      "location": "Remote",
+      "formats": [
+        "online"
+      ],
+      "prize": "$$10,000+ in prizes & gadgets",
+      "image": "https://cdn.wmdhq.co/hackathon-cards/b88edb5c-b202-41dd-9395-56792b4f7876.webp",
+      "href": "https://archive.wemakedevs.org/hackathons/hackfrost24",
+      "isExternal": true,
+      "startDate": "2024-11-29T04:30:00Z",
+      "endDate": "2024-12-02T06:30:00Z",
+      "date": "Nov 29 – Dec 2, 2024",
+      "displayDateOverride": null,
+      "hackathonSlug": null,
+      "seriesSlug": null
+    },
+    {
+      "id": "3b0c1b0e-336e-4d0d-b96c-4777c17714f2",
+      "title": "Stream Hackathon",
+      "location": "Remote",
+      "formats": [
+        "online"
+      ],
+      "prize": "Meet people, learn, build something new",
+      "image": "https://cdn.wmdhq.co/hackathon-cards/1e26a24f-ab32-4e8f-a735-e89a112d125e.webp",
+      "href": "https://wemakedevs-stream.devpost.com/",
+      "isExternal": true,
+      "startDate": "2022-12-16T00:00:00Z",
+      "endDate": "2022-12-18T23:59:00Z",
+      "date": "Dec 16–18, 2022",
+      "displayDateOverride": null,
+      "hackathonSlug": null,
+      "seriesSlug": null
+    },
+    {
+      "id": "e49d1b97-ae52-4bae-bc35-c88dbd829330",
+      "title": "Cloud Native Hack",
+      "location": "Remote",
+      "formats": [
+        "online"
+      ],
+      "prize": "Build on Kubernetes and cloud native tech",
+      "image": "https://cdn.wmdhq.co/hackathon-cards/77711e30-e609-4bc7-b637-d07226ed8c95.webp",
+      "href": "https://cloudnativehack21.devpost.com/",
+      "isExternal": true,
+      "startDate": "2021-12-10T00:00:00Z",
+      "endDate": "2021-12-12T23:59:00Z",
+      "date": "Dec 10–12, 2021",
+      "displayDateOverride": null,
+      "hackathonSlug": null,
+      "seriesSlug": null
+    }
+  ]
+}

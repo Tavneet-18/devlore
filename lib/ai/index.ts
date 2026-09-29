@@ -3,6 +3,7 @@ import { MockAIEnhancer } from "./mockEnhancer";
 import { GroqEnhancer } from "./groqEnhancer";
 import { MOCK_SOURCES } from "./mockSources";
 import { LIVE_SOURCES } from "./sources/liveSources";
+import { CITY_AGNOSTIC_SOURCES } from "./sources/indiaSources";
 
 /**
  * PLUGGABLE PROVIDER FACTORY
@@ -39,6 +40,18 @@ export function getEnhancer(): AIEnhancer {
 export function getDiscoverySources(_location: string): DiscoverySource[] {
   void _location;
   return (process.env.DISCOVERY_MODE ?? "mock") === "live" ? LIVE_SOURCES : MOCK_SOURCES;
+}
+
+/**
+ * Sources with no location dimension.
+ *
+ * These platforms publish a single global listing and expose no city filter,
+ * so they are fetched once per run rather than once per city. Their fetch
+ * signature takes no argument for the same reason.
+ */
+export function getCityAgnosticSources(): DiscoverySource[] {
+  if ((process.env.DISCOVERY_MODE ?? "mock") !== "live") return [];
+  return CITY_AGNOSTIC_SOURCES.map((s) => ({ ...s, fetch: () => s.fetch() }));
 }
 
 export function dedupeEvents<T extends { title: string; date?: string; city?: string; source?: string }>(raw: T[]) {

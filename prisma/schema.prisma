@@ -36,6 +36,21 @@ model Event {
   rawPayload Json?
   expiresAt  DateTime?
 
+  // Platform-stable identity. `externalId` above was set to the listing URL,
+  // which several platforms rewrite — a changed slug therefore created a
+  // duplicate row instead of updating the existing one. `sourceId` holds the
+  // id the platform itself uses (slug or uuid) and is what we now upsert on.
+  sourceId String?
+
+  // WHICH date the countdown is measuring.
+  //   "registration" -> the platform publishes a real registration deadline
+  //   "event-end"    -> it does not, and we count down to the event's end date
+  // NULL on manual submissions, which have no deadline of any kind.
+  // Without this the UI would label a hackathon's finish date as
+  // "Registration closes", which would be a small lie in a product built on
+  // honest deadlines.
+  deadlineKind String?
+
   bookmarks Bookmark[]
   views     View[]
 
@@ -45,6 +60,35 @@ model Event {
   @@index([externalId])
   @@index([source, fetchedAt])
   @@index([hash])
+  @@index([title])
+
+  // Partial: manual submissions have a NULL sourceId, and Postgres treats
+  // NULLs as distinct, so they must not collide with each other.
+  @@unique([source, sourceId])
+}
+
+/**
+ * One row per source per ingest run.
+ *
+ * A silent ingest is indistinguishable from a working one. When a source
+ * starts returning nothing — markup changed, endpoint moved, robots.txt
+ * changed — there was previously no signal at all, because the cron only
+ * reported what it wrote and never what it failed to fetch.
+ */
+model IngestRun {
+  id          String    @id @default(cuid())
+  startedAt   DateTime  @default(now())
+  finishedAt  DateTime?
+  source      String
+  fetched     Int       @default(0)
+  created     Int       @default(0)
+  updated     Int       @default(0)
+  skipped     Int       @default(0)
+  errors      Int       @default(0)
+  errorSample String?
+
+  @@index([startedAt])
+  @@index([source, startedAt])
 }
 
 model Bookmark {
