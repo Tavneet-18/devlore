@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { ADMIN_COOKIE, isAdminConfigured, verifyAdminToken } from "@/lib/admin-session";
+import { isAuthBypassed } from "@/lib/auth-bypass";
 
 /**
  * Admin gate.
@@ -13,6 +14,10 @@ import { ADMIN_COOKIE, isAdminConfigured, verifyAdminToken } from "@/lib/admin-s
  */
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // Explicit development escape hatch. Everything below still applies once it
+  // is switched off; nothing is removed.
+  if (isAuthBypassed()) return NextResponse.next();
 
   // Fail closed. With no ADMIN_PASSWORD set there is no way to authenticate,
   // so admin stays shut rather than falling open.

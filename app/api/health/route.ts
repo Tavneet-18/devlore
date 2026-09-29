@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { verifyAdminToken, ADMIN_COOKIE } from "@/lib/admin-session";
+import { isAuthBypassed } from "@/lib/auth-bypass";
 import { timingSafeEqual } from "node:crypto";
 
 export const dynamic = "force-dynamic";
@@ -28,6 +29,8 @@ function keyMatches(provided: string, expected: string): boolean {
 }
 
 async function isAuthorised(request: NextRequest): Promise<boolean> {
+  if (isAuthBypassed()) return true;
+
   const token = request.cookies.get(ADMIN_COOKIE)?.value;
   if (await verifyAdminToken(token)) return true;
 
@@ -51,7 +54,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ ok: true }, { status: 200 });
   }
 
-  return NextResponse.json(await detailedReport(), { status: 200 });
+  const report = await detailedReport();
+  if (isAuthBypassed()) report.authBypassed = true;
+  return NextResponse.json(report, { status: 200 });
 }
 
 /**
