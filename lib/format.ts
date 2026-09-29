@@ -1,7 +1,22 @@
+/**
+ * Everything is stored in UTC. Everything is DISPLAYED in IST.
+ *
+ * The server runs in UTC, so without an explicit timeZone a date formatted on
+ * the server renders in UTC and reads as the previous day to anyone in India —
+ * which matters a great deal on a product whose entire premise is "this closes
+ * on the 30th". Pinning the zone here means the server and the client agree
+ * and there is no hydration mismatch.
+ */
+export const DISPLAY_TIMEZONE = "Asia/Kolkata";
+export const DISPLAY_TZ_LABEL = "IST";
+
+const TZ = { timeZone: DISPLAY_TIMEZONE } as const;
+
 export function formatDate(iso: string, opts?: Intl.DateTimeFormatOptions): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "TBA";
   return d.toLocaleDateString("en-US", {
+    ...TZ,
     weekday: "short",
     month: "short",
     day: "numeric",
@@ -12,7 +27,21 @@ export function formatDate(iso: string, opts?: Intl.DateTimeFormatOptions): stri
 export function formatDay(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "?";
-  return d.toLocaleDateString("en-US", { weekday: "short", day: "numeric", month: "short" });
+  return d.toLocaleDateString("en-US", { ...TZ, weekday: "short", day: "numeric", month: "short" });
+}
+
+/** Full IST timestamp, for anywhere the exact time matters. */
+export function formatDateTime(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "TBA";
+  return `${d.toLocaleString("en-GB", {
+    ...TZ,
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  })} ${DISPLAY_TZ_LABEL}`;
 }
 
 export function isUpcoming(iso: string): boolean {
@@ -111,10 +140,28 @@ export function formatDateRange(startIso: string, endIso?: string | null): strin
 
   const sameYear = start.getFullYear() === end.getFullYear();
   const endLabel = end.toLocaleDateString("en-US", {
+    ...TZ,
     month: "short",
     day: "numeric",
     ...(sameYear ? {} : { year: "numeric" }),
   });
 
   return `${formatDate(startIso)} – ${endLabel}`;
+}
+
+/**
+ * What the countdown on a card is actually measuring.
+ *
+ * Devfolio and Hack2Skill publish a real registration deadline. WeMakeDevs and
+ * MLH publish none, so for those we count down to the event's end date instead.
+ * Labelling both "Registration closes" would be a small lie in a product built
+ * on honest deadlines, so the kind is stored per row and surfaced here.
+ */
+export function deadlineLabel(
+  kind: string | null | undefined,
+  phase: EventPhase
+): string {
+  if (kind === "registration") return "Registration closes in";
+  if (kind === "event-end") return phase === "ongoing" ? "Ends in" : "Runs until";
+  return phase === "ongoing" ? "Ends in" : "Starts in";
 }

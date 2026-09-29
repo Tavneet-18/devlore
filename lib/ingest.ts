@@ -5,6 +5,7 @@ import { discoverEvents } from "./ai/discovery";
 import { getEnhancer, getDiscoverySources, getCityAgnosticSources } from "./ai";
 import { isEventType, moderationStatusFor } from "./constants";
 import { getSchemaCapabilities } from "./schema-capabilities";
+import { findDuplicates, normaliseTitle } from "./dedupe";
 import type { RawEvent } from "./ai/types";
 
 export interface SourceStat {
@@ -77,6 +78,8 @@ interface UpsertOutcome {
   created: boolean;
   updated: boolean;
   skipped: boolean;
+  /** True when this listing matched an event we already had, from another platform. */
+  merged?: boolean;
   error?: string;
 }
 
@@ -91,7 +94,7 @@ interface UpsertOutcome {
 async function upsertEvent(
   raw: RawEvent,
   enhancer: { enhance: (t: string, d: string, l?: string) => Promise<{ summary: string; tags: string[]; beginnerFriendly: boolean; isOnline: boolean }> },
-  caps: { sourceIdentity: boolean }
+  caps: { sourceIdentity: boolean; ingestRun: boolean }
 ): Promise<UpsertOutcome> {
   const date = new Date(raw.date);
   if (Number.isNaN(date.getTime())) return { created: false, updated: false, skipped: true };
@@ -116,7 +119,72 @@ async function upsertEvent(
   // avoids spending a Groq call on a row we already summarised.
   if (existing && existing.hash === hash) {
     await db.event.update({ where: { id: existing.id }, data: { fetchedAt: new Date() } });
+    if (caps.ingestRun) {
+      await db.eventSourceRef
+        .updateMany({
+          where: { eventId: existing.id, source: raw.source },
+          data: { lastSeenAt: new Date() },
+        })
+        .catch(() => {});
+    }
     return { created: false, updated: false, skipped: true };
+  }
+
+  // Not seen on this platform before. Before creating a second row for what
+  // may be the same real event, check whether we already hold it from another
+  // source. Matching here rather than merging after the fact means a dedupe
+  // can never destroy a row that had bookmarks or a moderation decision.
+  if (caps.ingestRun && !existing) {
+    const key = normaliseTitle(raw.title);
+    if (key) {
+      // Cheap pre-filter on the first significant word, then the real check.
+      const head = key.slice(0, 8);
+      const nearby = head
+        ? await db.event.findMany({
+            where: {
+              status: { not: "REJECTED" },
+              title: { contains: head, mode: "insensitive" },
+            },
+            select: { id: true, title: true, date: true, endDate: true, city: true, isOnline: true },
+            take: 60,
+          })
+        : [];
+
+      const dupes = nearby.length
+        ? findDuplicates(
+            {
+              id: "__incoming__",
+              title: raw.title,
+              date: raw.date,
+              endDate: raw.endDate ?? null,
+              city: raw.city ?? null,
+              isOnline: raw.isOnline,
+            },
+            nearby
+          )
+        : [];
+
+      if (dupes.length > 0) {
+        const winner = dupes[0].canonicalId;
+        const refId = raw.sourceId ?? externalId;
+        await db.eventSourceRef.upsert({
+          where: { source_sourceId: { source: raw.source, sourceId: refId } },
+          create: {
+            eventId: winner,
+            source: raw.source,
+            sourceId: refId,
+            link: raw.link ?? null,
+          },
+          update: { lastSeenAt: new Date(), link: raw.link ?? undefined },
+        });
+        // Refresh the canonical so a poster or date correction still lands.
+        await db.event.update({
+          where: { id: winner },
+          data: { imageUrl: raw.imageUrl ?? undefined, fetchedAt: new Date() },
+        });
+        return { created: false, updated: true, skipped: false, merged: true };
+      }
+    }
   }
 
   // Only reach for the model when we actually have something new to summarise.

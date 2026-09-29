@@ -7,6 +7,7 @@ import { getEnhancer } from "@/lib/ai";
 import { getViewerId } from "@/lib/session";
 import { rateLimit } from "@/lib/rate-limit";
 import { clientKey } from "@/lib/request-identity";
+import { getSchemaCapabilities } from "@/lib/schema-capabilities";
 
 export const dynamic = "force-dynamic";
 
@@ -93,12 +94,34 @@ export async function GET(request: NextRequest) {
 
   const bookmarkedIds = new Set(bookmarked.map((b) => b.eventId));
 
+  // Cross-source refs, so an event seen on several platforms can show all of
+  // them rather than only whichever one created the row. Tolerates the
+  // pre-migration schema, where the table does not exist.
+  let refsByEvent = new Map<string, { source: string; link: string | null }[]>();
+  try {
+    const caps = await getSchemaCapabilities();
+    if (caps.ingestRun) {
+      const refs = await db.eventSourceRef.findMany({
+        select: { eventId: true, source: true, link: true },
+      });
+      const m = new Map<string, { source: string; link: string | null }[]>();
+      for (const r of refs) {
+        const list = m.get(r.eventId) ?? [];
+        list.push({ source: r.source, link: r.link });
+        m.set(r.eventId, list);
+      }
+      refsByEvent = m;
+    }
+  } catch {
+    // Pre-migration, or the table is unavailable. Links are optional.
+  }
+
   const liveMode = (process.env.DISCOVERY_MODE ?? "mock") === "live";
 
   return NextResponse.json({
     count: events.length,
     filters: { city, type, mode, timeframe, beginner, q },
-    events: events.map((e) => toEventDTO(e, bookmarkedIds)),
+    events: events.map((e) => toEventDTO(e, bookmarkedIds, refsByEvent.get(e.id))),
     sources: ["devpost", "unstop", "gdg", "manual"].map((s) => `${liveMode ? "live" : "mock"}:${s}`),
   });
 }

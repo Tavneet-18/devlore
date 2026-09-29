@@ -28,13 +28,25 @@ export interface EventDTO {
   tags: string[];
   beginnerFriendly: boolean;
   source: string;
+  /**
+   * Which date the countdown measures: "registration" when the platform
+   * publishes a real registration deadline, "event-end" when it does not.
+   * The UI must not call a finish date a closing date.
+   */
+  deadlineKind: string | null;
+  /** Every platform this same event was also seen on, after a cross-source merge. */
+  alsoOn: { source: string; link: string | null }[];
   status: string;
   viewCount: number;
   createdAt: string;
   bookmarked?: boolean;
 }
 
-export function toEventDTO(event: Event, bookmarkedIds?: Set<string>): EventDTO {
+export function toEventDTO(
+  event: Event,
+  bookmarkedIds?: Set<string>,
+  sourceRefs?: { source: string; link: string | null }[]
+): EventDTO {
   return {
     id: event.id,
     title: event.title,
@@ -52,6 +64,8 @@ export function toEventDTO(event: Event, bookmarkedIds?: Set<string>): EventDTO 
     tags: parseTags(event),
     beginnerFriendly: event.beginnerFriendly,
     source: event.source,
+    deadlineKind: event.deadlineKind ?? null,
+    alsoOn: sourceRefs ?? [],
     status: event.status,
     viewCount: event.viewCount,
     createdAt: event.createdAt.toISOString(),

@@ -53,6 +53,7 @@ model Event {
 
   bookmarks Bookmark[]
   views     View[]
+  sourceRefs EventSourceRef[]
 
   @@index([status])
   @@index([eventType])
@@ -62,9 +63,35 @@ model Event {
   @@index([hash])
   @@index([title])
 
-  // Partial: manual submissions have a NULL sourceId, and Postgres treats
-  // NULLs as distinct, so they must not collide with each other.
+  // Manual submissions have a NULL sourceId, and Postgres treats NULLs as
+  // distinct in a unique index, so they must not collide with each other.
   @@unique([source, sourceId])
+}
+
+/**
+ * Every platform a single real event was seen on.
+ *
+ * The same hackathon is routinely listed on Devpost, Hack2Skill and a
+ * corporate site at once. Without this, each sighting became its own Event row:
+ * the count inflated, one real deadline looked like three urgent ones, and the
+ * model was asked to summarise the same listing repeatedly.
+ *
+ * The first sighting stays on the Event row itself. Additional sightings land
+ * here, so no platform's link is lost.
+ */
+model EventSourceRef {
+  id          String   @id @default(cuid())
+  eventId     String
+  source      String
+  sourceId    String
+  link        String?
+  firstSeenAt DateTime @default(now())
+  lastSeenAt  DateTime @default(now())
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([source, sourceId])
+  @@index([eventId])
 }
 
 /**

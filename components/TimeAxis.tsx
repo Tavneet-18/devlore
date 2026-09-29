@@ -4,9 +4,21 @@ import Link from "next/link";
 import { useMemo } from "react";
 import type { EventDTO } from "@/lib/events";
 import { EVENT_TYPE_LABELS } from "@/lib/constants";
-import { countdown } from "@/lib/format";
+import { countdown, deadlineLabel, eventPhase } from "@/lib/format";
 import { useNow } from "@/lib/use-now";
 import { accentFor, accentTextFor } from "./EventCard";
+
+/** Platform names, so a card says where the listing came from. */
+const SOURCE_LABELS: Record<string, string> = {
+  devpost: "Devpost",
+  unstop: "Unstop",
+  gdg: "GDG",
+  devfolio: "Devfolio",
+  hack2skill: "Hack2Skill",
+  wemakedevs: "WeMakeDevs",
+  mlh: "MLH",
+  manual: "Submitted",
+};
 
 /**
  * The spatial time axis.
@@ -252,6 +264,14 @@ export function TimeAxis({ events, now: nowIso }: { events: EventDTO[]; now: str
                   </p>
                   <p className="mt-1.5 font-mono text-[10px] uppercase tracking-[0.06em] text-closing">
                     {countdown(p.event.endDate ?? p.event.date)}
+                  </p>
+                  {/* Which date that countdown measures, and where it came
+                      from. Two of the four sources publish no registration
+                      deadline, so this is not a cosmetic label. */}
+                  <p className="mt-0.5 truncate text-[9px] uppercase tracking-[0.1em] text-faint/70">
+                    {deadlineLabel(p.event.deadlineKind, eventPhase(p.event.date, p.event.endDate))}
+                    {" · "}
+                    {SOURCE_LABELS[p.event.source] ?? p.event.source}
                   </p>
                   <p className="mt-0.5 truncate text-[10px] uppercase tracking-[0.1em] text-faint">
                     {p.event.isOnline ? "Online" : p.event.city ?? "TBA"}
