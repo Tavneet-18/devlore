@@ -61,6 +61,27 @@ function plain(value: unknown, max = 600): string {
     .slice(0, max);
 }
 
+/**
+ * Scope gate for end-date-only sources.
+ *
+ * Devfolio and Hack2Skill publish a real registration deadline, which is what
+ * this product is built around. WeMakeDevs and MLH do not — for those the only
+ * date is when the event finishes, which is a different fact and must not be
+ * presented as a closing deadline.
+ *
+ * Keeping every MLH event therefore added 70-odd North American university
+ * hackathons to a site built around Indian builders, and gave the closing axis
+ * numbers that were not closings. So for these sources we keep only what is
+ * genuinely relevant here: anything online, plus anything physically in India.
+ */
+const INDIA_HINTS =
+  /\b(india|indian|bengaluru|bangalore|mumbai|delhi|hyderabad|pune|chennai|kolkata|ahmedabad|jaipur|indore|kochi|coimbatore|chandigarh|noida|gurgaon|gurugram|haryana|maharashtra|karnataka|telangana|gujarat|rajasthan|madhya pradesh|tamil nadu|uttar pradesh|new delhi|navi mumbai|thane|pune)\b/i;
+
+function isInScope(raw: { isOnline?: boolean; city?: string | null; venue?: string }): boolean {
+  if (raw.isOnline) return true;
+  return INDIA_HINTS.test(`${raw.city ?? ""} ${raw.venue ?? ""}`);
+}
+
 /* -------------------------------------------------------------------------- */
 /* Devfolio — method (b), __NEXT_DATA__ JSON island                           */
 /* ---------------------------------------------------------------------------- */
@@ -341,6 +362,11 @@ const wemakedevsFetch = async (): Promise<RawEvent[]> => {
 
       const formats = (card.formats ?? []).map((f) => String(f).toLowerCase());
       const isOnline = formats.includes("online") || /remote|online/i.test(String(card.location ?? ""));
+      const venue = plain(card.location, 60);
+
+      // Scope gate: no registration deadline is published, so these are
+      // end-date-only. Keep only what is online or actually in India.
+      if (!isInScope({ isOnline, city: venue, venue })) continue;
 
       const href = card.isExternal ? card.href : `${WMD_BASE}${card.href ?? ""}`;
       const link = safeUrl(href, WMD_BASE);
@@ -360,7 +386,7 @@ const wemakedevsFetch = async (): Promise<RawEvent[]> => {
         endDate: String(card.endDate),
         // No registration deadline is published; we count down to the end date.
         deadlineKind: "event-end",
-        city: isOnline ? undefined : plain(card.location, 60) || "India",
+        city: isOnline ? undefined : venue || "India",
         isOnline,
         organizer: "WeMakeDevs",
         link,
@@ -426,17 +452,23 @@ const mlhFetch = async (): Promise<RawEvent[]> => {
 
         const format = String(e.formatType ?? "").toLowerCase();
         const isOnline = format === "virtual" || format === "online";
+        const venue = plain(e.location, 60);
+
+        // MLH's 2027 season is dominated by North American university
+        // hackathons, and none of them publish a registration deadline. Keep
+        // only what is online or actually in India.
+        if (!isInScope({ isOnline, city: venue, venue })) continue;
 
         out.push({
           source: "mlh",
           sourceId,
           title,
-          description: `${title} — a Major League Hacking event${e.location ? ` in ${plain(e.location, 80)}` : ""}.`,
+          description: `${title} — a Major League Hacking event${venue ? ` in ${venue}` : ""}.`,
           date: e.startsAt ?? String(e.endsAt),
           endDate: e.endsAt ?? undefined,
           // No registration deadline is published by MLH.
           deadlineKind: "event-end",
-          city: isOnline ? undefined : plain(e.location, 60) || "USA",
+          city: isOnline ? undefined : venue || "India",
           isOnline,
           organizer: "Major League Hacking",
           link: safeUrl(e.websiteUrl, MLH_BASE) ?? `${MLH_BASE}/events/${e.slug ?? ""}`,

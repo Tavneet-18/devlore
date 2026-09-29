@@ -122,38 +122,44 @@ export function EventExplorer({
    * Ordering is the editorial point of the page: the nearest deadlines come
    * first, so the reader meets the most time-sensitive thing immediately.
    *
-   * The axis and the index are disjoint by construction. They previously
-   * overlapped, which put the lead story inside the closing-soon strip as
-   * well — the same event rendered twice on one page.
+   * `closing` and `happening` are separated by deadlineKind, not by date.
+   * WeMakeDevs and MLH publish no registration deadline, so the only date they
+   * give is when the event finishes. Putting those on a closing-deadline axis
+   * would claim a finish date is a deadline and would inflate "closing soon"
+   * with events that are not closing, so they get their own section below.
+   *
+   * A null deadlineKind is legacy content from before the column existed
+   * (Devpost, Unstop, GDG) whose endDate has always been treated as the
+   * closing date. It stays on the axis, so this change is purely additive.
    */
-  const { index, upcoming } = useMemo(() => {
+  const { index, closing, happening } = useMemo(() => {
     if (!events || events.length === 0) {
-      return { index: [] as EventDTO[], upcoming: [] as EventDTO[] };
+      return { index: [] as EventDTO[], closing: [] as EventDTO[], happening: [] as EventDTO[] };
     }
     const deadlineOf = (e: EventDTO) =>
       e.endDate ? new Date(e.endDate).getTime() : new Date(e.date).getTime();
+    const isEndDated = (e: EventDTO) => e.deadlineKind === "event-end";
+    const bySoonest = (a: EventDTO, b: EventDTO) => deadlineOf(a) - deadlineOf(b);
 
-    const live = events.filter((e) => deadlineOf(e) >= now).sort((a, b) => deadlineOf(a) - deadlineOf(b));
-    const rest = events.filter((e) => deadlineOf(e) < now).sort((a, b) => deadlineOf(a) - deadlineOf(b));
+    const closable = events.filter((e) => !isEndDated(e)).sort(bySoonest);
+    const endDated = events.filter(isEndDated).sort(bySoonest);
 
     return {
-      upcoming: live,
-      // The index is the detail view: everything not already on the axis,
-      // nearest deadline first.
-      index: [...live, ...rest].slice(1),
+      closing: closable,
+      happening: endDated,
+      // Full roster minus what the axis already shows.
+      index: [...closable.slice(1), ...endDated].sort(bySoonest),
     };
-  }, [events, now]);
+  }, [events]);
 
-  // Actually closing within a week. This used to be the length of the whole
-  // upcoming list, so the number was right but the label was not: it counted
-  // every open event, including ones closing in three months.
+  // Only genuine closings. An event that merely ends soon is not closing.
   const closingSoon = useMemo(
     () =>
-      upcoming.filter((e) => {
+      closing.filter((e) => {
         const d = e.endDate ? new Date(e.endDate).getTime() : new Date(e.date).getTime();
         return d - now < 7 * 86400000;
       }).length,
-    [upcoming, now]
+    [closing, now]
   );
 
   const reset = () => {
@@ -168,9 +174,9 @@ export function EventExplorer({
   return (
     <section className="pb-24">
       {/* The spatial time axis — the organising structure of the page. */}
-      {upcoming.length > 0 && (
+      {closing.length > 0 && (
         <div className="mt-12">
-          <TimeAxis events={upcoming} now={nowIso} />
+          <TimeAxis events={closing} now={nowIso} />
         </div>
       )}
 
@@ -291,7 +297,31 @@ export function EventExplorer({
         </div>
       )}
 
-      {/* The index — the detail view for readers who want the full roster. */}
+      {/* Happening soon.
+          Events whose platform publishes no registration deadline. The only
+          date available is the event's end date, so they are kept off the
+          closing axis entirely and labelled for what they actually are rather
+          than being shown as a deadline they do not have. */}
+      {happening.length > 0 && (
+        <section className="mt-24">
+          <h2 className="font-serif text-[26px] leading-none tracking-tight text-ink">
+            Happening soon
+          </h2>
+          <p className="mt-3 max-w-xl text-[13px] leading-relaxed text-muted">
+            These platforms do not publish a registration deadline, so the date shown is
+            when the event <em className="not-italic text-ink">ends</em> — not when it
+            closes. They are deliberately kept off the axis above.
+          </p>
+          <div className="mt-4">
+            {happening.map((event, i) => (
+              <IndexRow key={event.id} event={event} index={i + 1} />
+            ))}
+            <div className="border-t border-line" />
+          </div>
+        </section>
+      )}
+
+      {/* The index - the detail view for readers who want the full roster. */}
       {index.length > 0 && (
         <section className="mt-24">
           <h2 className="font-serif text-[26px] leading-none tracking-tight text-ink">
