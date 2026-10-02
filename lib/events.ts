@@ -150,21 +150,32 @@ export function buildEventWhere(input: EventQuery): Prisma.EventWhereInput {
   return where;
 }
 
+/**
+ * Columns that have existed since the first migration. Safe to select on any
+ * database this code has ever been pointed at.
+ */
 const EVENT_BASE_SELECT = {
   id: true, title: true, summary: true, description: true,
   date: true, endDate: true, city: true, country: true,
   isOnline: true, eventType: true, organizer: true, link: true,
   imageUrl: true, tags: true, beginnerFriendly: true,
-  source: true, sourceId: true, deadlineKind: true,
+  source: true,
   status: true, viewCount: true, createdAt: true, fetchedAt: true,
 } as const;
 
-const EVENT_DETAILS_SELECT = {
+/** Adds migration 001's columns. */
+const EVENT_SOURCE_IDENTITY_SELECT = {
   ...EVENT_BASE_SELECT,
+  sourceId: true, deadlineKind: true,
+} as const;
+
+/** Adds migration 004's columns. */
+const EVENT_DETAILS_SELECT = {
+  ...EVENT_SOURCE_IDENTITY_SELECT,
   brief: true, whoCanJoin: true, details: true,
 } as const;
 
-/** The row shape both variants share, before the migration-004 columns. */
+/** The row shape shared by every variant; later columns are optional. */
 export type SelectedEvent = Omit<
   Event,
   "brief" | "whoCanJoin" | "details" | "sourceId" | "deadlineKind"
@@ -175,27 +186,33 @@ export type SelectedEvent = Omit<
  * A single, well-labelled cast.
  *
  * Prisma cannot infer a stable type from a select whose keys are added at
- * runtime, so the two concrete variants (with and without the migration-004
- * columns) are collapsed here rather than forcing a cast at every call site.
- * `brief`, `whoCanJoin` and `details` are genuinely optional: they are absent
- * until migration 004 is applied, and the DTO already treats null and absent
- * the same way.
+ * runtime, so the three concrete variants are collapsed here rather than
+ * forcing a cast at every call site. The later columns are genuinely optional:
+ * they are absent until their migration is applied, and the DTO already treats
+ * null and absent the same way.
  */
 export function asSelected<T>(rows: T[]): SelectedEvent[] {
   return rows as unknown as SelectedEvent[];
 }
 
 /**
- * An explicit column list rather than a bare findMany.
+ * The columns to select from Event, in three tiers.
  *
- * A bare findMany selects every column, which makes the events API throw
- * outright if it is deployed before migration 004 has been applied. Selecting
- * explicitly, and dropping the new columns until the probe says they exist, is
- * what lets code ship ahead of the manual migration without an outage.
+ * Each tier adds the previous one's columns plus one migration's worth, and the
+ * tier is chosen from the live schema probe rather than assumed.
+ *
+ * This must be built by composition and gated per tier. An earlier version put
+ * `sourceId` and `deadlineKind` in the *base* select unconditionally, which
+ * meant a database without migration 001 failed every single Event query —
+ * with a health check that reported the schema as up to date, because that
+ * check only ever verified the original columns. A missing column in a select
+ * is a hard Postgres error, not a null, so it takes down every read at once.
  */
 export async function eventSelect() {
   const caps = await getSchemaCapabilities();
-  return caps.eventDetails ? EVENT_DETAILS_SELECT : EVENT_BASE_SELECT;
+  if (caps.eventDetails) return EVENT_DETAILS_SELECT;
+  if (caps.sourceIdentity) return EVENT_SOURCE_IDENTITY_SELECT;
+  return EVENT_BASE_SELECT;
 }
 
 export async function queryEvents(

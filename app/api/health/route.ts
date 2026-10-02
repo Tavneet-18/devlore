@@ -95,31 +95,56 @@ async function detailedReport() {
   try {
     const rows = await db.$queryRaw<{ count: bigint }[]>`
       SELECT count(*)::bigint AS count FROM information_schema.tables
-      WHERE table_schema = 'public' AND table_name IN ('Event','Bookmark','View')
+      WHERE table_schema = 'public'
+        AND table_name IN ('Event','Bookmark','View','EventSourceRef','IngestRun')
     `;
     const found = Number(rows[0]?.count ?? 0);
     out.tablesFound = found;
-    out.tablesExpected = 3;
+    out.tablesExpected = 5;
   } catch (e) {
     out.tableCheck = `FAILED: ${String((e as Error).message).slice(0, 200)}`;
   }
 
   // A missing column makes every event query fail at runtime while connectivity
   // still looks healthy, so it is worth naming explicitly.
+  //
+  // This list must cover every column the code selects, not just the ones the
+  // first migration created. It previously omitted sourceId, deadlineKind,
+  // brief, whoCanJoin and details, so it reported "schema up to date" on a
+  // database missing exactly those — a false green that hid a total outage of
+  // the events API. Anything in eventSelect() belongs here.
   try {
     const cols = await db.$queryRaw<{ column_name: string }[]>`
       SELECT column_name FROM information_schema.columns
       WHERE table_schema = 'public' AND table_name = 'Event'
     `;
     const present = new Set(cols.map((c) => c.column_name));
-    const required = [
-      "id", "title", "date", "endDate", "city", "isOnline", "eventType",
-      "organizer", "link", "imageUrl", "tags", "beginnerFriendly", "source",
-      "status", "viewCount", "summary", "description", "externalId", "hash",
+    // Grouped by the migration that introduces them, so a failure names the
+    // file to run instead of just a column.
+    const byMigration: Record<string, string[]> = {
+      "001_source_identity.sql": ["sourceId", "deadlineKind"],
+      "004_event_details.sql": ["details", "brief", "whoCanJoin", "briefedAt"],
+    };
+    // Always required — from the original schema.
+    const base = [
+      "id", "title", "summary", "description", "date", "endDate", "city", "country",
+      "isOnline", "eventType", "organizer", "link", "imageUrl", "tags",
+      "beginnerFriendly", "source", "status", "viewCount", "createdAt",
+      "updatedAt", "externalId", "hash", "fetchedAt", "rawPayload", "expiresAt",
     ];
-    const missing = required.filter((c) => !present.has(c));
+    const missing = base.filter((c) => !present.has(c));
+    const pending: string[] = [];
+    for (const [file, group] of Object.entries(byMigration)) {
+      const absent = group.filter((c) => !present.has(c));
+      if (absent.length === group.length) pending.push(file);
+      else missing.push(...absent);
+    }
     out.eventColumnsMissing = missing;
-    out.schemaUpToDate = missing.length === 0;
+    // Only "up to date" when every optional migration has landed too. A
+    // database on the base schema is not out of date, but it is not complete
+    // either, and the difference decides what the site can show.
+    out.pendingMigrations = pending;
+    out.schemaUpToDate = missing.length === 0 && pending.length === 0;
   } catch (e) {
     out.columnCheck = `FAILED: ${String((e as Error).message).slice(0, 200)}`;
   }
