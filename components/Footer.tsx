@@ -1,10 +1,15 @@
 import Link from "next/link";
+import { TRUSTED_SOURCES, sourceLabel } from "@/lib/constants";
 
 /**
  * Sources are named explicitly. A directory that aggregates other people's
  * listings should say where they come from and tell readers to verify.
+ *
+ * Derived from TRUSTED_SOURCES rather than written out by hand: the hardcoded
+ * list still named four platforms after four more were added, so the page
+ * under-reported where half its events came from.
  */
-const SOURCES = "Devpost · Unstop · Google Developer Groups · Direct organiser dispatches";
+const SOURCES = `${TRUSTED_SOURCES.map(sourceLabel).join(" · ")} · Submitted directly`;
 
 export function Footer() {
   return (
