@@ -1,5 +1,5 @@
-import type { EventDetails } from "./event-details";
-import { feeLabel, teamSizeLabel } from "./event-details";
+import type { EventDetails } from "./event-facts";
+import { feeLabel, teamSizeLabel } from "./event-facts";
 import {
   formatDateRange,
   formatDateTime,
