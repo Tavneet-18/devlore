@@ -35,8 +35,30 @@ export const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 365;
  * Platforms that vet their own listings. Events pulled from these sources are
  * published immediately — the platform already did the vetting, and the
  * organizer is whoever ran the event, not the platform.
+ *
+ * The four added in Phase 2 are the same class of thing, and each vets at the
+ * point we read it:
+ *   - Devfolio publishes only listed, accepted hackathons on /open_hackathons.
+ *   - Hack2skill's API is filtered on status === "APPROVED", so an unvetted
+ *     listing is never fetched in the first place.
+ *   - WeMakeDevs lists partner-run programmes (AWS and similar), not
+ *     self-submitted posts.
+ *   - MLH curates its own calendar; an event appears only once MLH has listed it.
+ *
+ * Without these four the adapters ran and every row landed in PENDING, which
+ * is indistinguishable from the platform being blocked: 28 real, vetted events
+ * were collected and then hidden by the moderation default.
  */
-export const TRUSTED_SOURCES = ["devpost", "unstop", "gdg", "meetup"] as const;
+export const TRUSTED_SOURCES = [
+  "devpost",
+  "unstop",
+  "gdg",
+  "meetup",
+  "devfolio",
+  "hack2skill",
+  "wemakedevs",
+  "mlh",
+] as const;
 
 /**
  * Organizations we publish for regardless of source — partners and known
