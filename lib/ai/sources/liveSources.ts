@@ -212,6 +212,11 @@ const devpostFetch: ExtractFn = async (city) => {
             .join(" "),
           date: range.start,
           endDate: range.end,
+          // range.end is the close of the submission window — a real closing
+          // deadline, not the date the hackathon finishes. Without this the
+          // row would be treated as end-date-only and dropped from the closing
+          // axis, and would never get a calendar button.
+          deadlineKind: "registration",
           venue: location || undefined,
           city: isOnline ? undefined : location || city,
           isOnline,

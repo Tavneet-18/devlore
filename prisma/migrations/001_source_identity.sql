@@ -52,13 +52,27 @@ WHERE "sourceId" IS NULL
   AND "externalId" IS NOT NULL
   AND "source" <> 'manual';
 
--- 5. Existing rows predate this column. Every one of them was placed by a
---    vetted platform using an event end date, so label them accordingly
---    rather than letting the UI claim a registration deadline it never had.
-UPDATE "Event"
-SET "deadlineKind" = 'event-end'
-WHERE "deadlineKind" IS NULL
-  AND "source" <> 'manual';
+-- 5. Existing rows predate this column, so we do not know what their endDate
+--    represents. Leave it NULL rather than asserting a value.
+--
+--    An earlier draft of this migration set every existing row to
+--    'event-end'. That was wrong, and wrong in the exact way this column
+--    exists to prevent: Devpost's endDate is the end of the SUBMISSION
+--    WINDOW, so labelling it 'event-end' would tell a reader "this hackathon
+--    finishes on the 23rd" when the truth is "submissions close on the 23rd",
+--    and it would drop the row off the closing-deadline axis entirely. Only
+--    two sources genuinely lack a registration deadline (WeMakeDevs and MLH),
+--    and they are the two adapters that set 'event-end' themselves.
+--
+--    NULL means "not established". The UI treats it as a closing date, which is
+--    how these rows have always been presented, so nothing changes visually
+--    until a source states otherwise. The devpost adapter now declares
+--    'registration' explicitly, and deadlineKind is part of the content hash,
+--    so that correction lands on the next run instead of being frozen in.
+--
+--    (Unstop and GDG are deliberately also left NULL: unstop's endDate is
+--    `event.endDate ?? registration.endDate`, which is genuinely ambiguous
+--    row by row, and asserting either kind would be a guess.)
 
 -- 6. Manual submissions are organiser-supplied with a start date only; there is
 --    no deadline of any kind, so they stay NULL and the UI shows no countdown.

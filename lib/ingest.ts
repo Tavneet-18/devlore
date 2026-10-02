@@ -51,6 +51,7 @@ function hashContent(event: {
   date: string;
   city?: string;
   link?: string;
+  deadlineKind?: string | null;
   details?: unknown;
 }): string {
   return createHash("sha1")
@@ -61,6 +62,12 @@ function hashContent(event: {
         event.date,
         event.city ?? "",
         event.link ?? "",
+        // Which date this row's countdown measures is part of what the row
+        // says, so a source that starts or stops publishing a real deadline
+        // must rewrite the row. Without it here, a corrected kind would be
+        // computed every run and silently discarded, because the rest of the
+        // content is unchanged.
+        event.deadlineKind ?? "",
         // The structured facts are hashed too. A platform that later publishes
         // a prize, or corrects a team size, must rewrite the detail page —
         // without this the row would be treated as unchanged and the correction
