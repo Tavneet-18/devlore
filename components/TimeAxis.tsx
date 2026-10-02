@@ -101,20 +101,25 @@ export function TimeAxis({ events, now: nowIso }: { events: EventDTO[]; now: str
     const deadlineOf = (e: EventDTO) =>
       e.endDate ? new Date(e.endDate).getTime() : new Date(e.date).getTime();
 
-    // Filter on the DEADLINE, matching how cards are positioned below.
-    // Filtering on the start date let an event that opened inside the window
-    // but closes weeks later render past the right edge, stretching the band
-    // to 5188px for a 2880px horizon.
-    const inWindow = events.filter(
-      (e) => deadlineOf(e) >= rangeStart && deadlineOf(e) <= rangeEnd
-    );
-
     // A FIXED horizon. This used to stretch to fit the furthest deadline, and
     // a single event closing in seven weeks stretched the band to 6480px with
     // thirteen events marooned across it — mostly empty space. The axis is a
     // near-term view; anything past the horizon simply lives in the index
     // instead, which already carries the full roster.
     const rangeEnd = todayStart + FUTURE_DAYS * DAY;
+
+    // Filter on the DEADLINE, matching how cards are positioned below.
+    // Filtering on the start date let an event that opened inside the window
+    // but closes weeks later render past the right edge, stretching the band
+    // to 5188px for a 2880px horizon.
+    //
+    // `rangeEnd` has to be declared above this filter, not below it. The
+    // callback runs during the call, so reading it first threw a TDZ error
+    // that blanked the whole page for every reader.
+    const inWindow = events.filter(
+      (e) => deadlineOf(e) >= rangeStart && deadlineOf(e) <= rangeEnd
+    );
+
     const totalDays = Math.ceil((rangeEnd - rangeStart) / DAY);
     const width = totalDays * PX_PER_DAY;
 
