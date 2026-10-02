@@ -26,8 +26,13 @@ export const EVENT_TYPE_LABELS: Record<string, string> = {
 export const EVENT_STATUSES = ["PENDING", "APPROVED", "REJECTED"] as const;
 export type EventStatus = (typeof EVENT_STATUSES)[number];
 
-export const DISCOVERY_MODE = process.env.DISCOVERY_MODE ?? "mock";
-export const AI_PROVIDER = process.env.AI_PROVIDER ?? "mock";
+// NOTE: this module used to export DISCOVERY_MODE and AI_PROVIDER. It is
+// imported by client components, so exporting process.env accessors from it
+// dragged Next's env shim into the client bundle. Under webpack that shim's
+// chunk init races the page chunk and any access TDZ-crashes the whole app
+// behind the error boundary. Every consumer reads process.env directly now,
+// and the shim does not appear. Keep this module free of process.env.
+
 export const BOOKMARK_COOKIE = "devlore_visitor";
 export const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 365;
 
