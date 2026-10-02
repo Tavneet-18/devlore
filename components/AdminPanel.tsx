@@ -23,7 +23,7 @@ export function AdminPanel() {
   const [events, setEvents] = useState<EventDTO[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<string | null>(null);
-  const [bypassed, setBypassed] = useState(false);
+  const bypassed = true; // Auth is fully removed — always true
 
   const fetchEvents = useCallback(async (status: string) => {
     setLoading(true);
@@ -39,15 +39,6 @@ export function AdminPanel() {
     } finally {
       setLoading(false);
     }
-  }, []);
-
-  // Surfaced from the server rather than baked into the bundle, so the banner
-  // reflects the deployed environment and not the build.
-  useEffect(() => {
-    void fetch("/api/health", { cache: "no-store" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => setBypassed(d?.authBypassed === true))
-      .catch(() => setBypassed(false));
   }, []);
 
   useEffect(() => {
@@ -84,9 +75,9 @@ export function AdminPanel() {
 
       {bypassed && (
         <p className="mb-8 border-y border-closing/40 py-3 text-[13px] text-closing">
-          <strong>Authentication is bypassed.</strong> Anyone with this URL can moderate, edit
-          and delete events. Set <code className="text-ink">AUTH_BYPASS=false</code> before
-          launching publicly.
+          <strong>No authentication.</strong> Anyone with this URL can moderate, edit
+          and delete events. Before launching publicly, re-add the session gate in
+          <code className="text-ink"> middleware.ts</code>.
         </p>
       )}
 

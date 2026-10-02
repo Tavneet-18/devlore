@@ -1,7 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { db } from "@/lib/db";
-import { verifyAdminToken, ADMIN_COOKIE } from "@/lib/admin-session";
-import { isAuthBypassed } from "@/lib/auth-bypass";
 import { timingSafeEqual } from "node:crypto";
 
 export const dynamic = "force-dynamic";
@@ -15,9 +13,7 @@ export const dynamic = "force-dynamic";
  * the shape of the database password. None of that belongs on an unauthenticated
  * endpoint.
  *
- * The full report is now available to:
- *   - a valid admin session cookie, or
- *   - `x-health-key: <HEALTH_KEY>`
+ * The full report is now available with `x-health-key: <HEALTH_KEY>`.
  */
 
 /** Constant-time compare, so the key cannot be discovered byte by byte. */
@@ -29,11 +25,6 @@ function keyMatches(provided: string, expected: string): boolean {
 }
 
 async function isAuthorised(request: NextRequest): Promise<boolean> {
-  if (isAuthBypassed()) return true;
-
-  const token = request.cookies.get(ADMIN_COOKIE)?.value;
-  if (await verifyAdminToken(token)) return true;
-
   const expected = process.env.HEALTH_KEY;
   if (expected) {
     const provided = request.headers.get("x-health-key");
@@ -55,7 +46,6 @@ export async function GET(request: NextRequest) {
   }
 
   const report = await detailedReport();
-  if (isAuthBypassed()) report.authBypassed = true;
   return NextResponse.json(report, { status: 200 });
 }
 
@@ -86,7 +76,6 @@ async function detailedReport() {
   out.discoveryMode = process.env.DISCOVERY_MODE ?? "(unset)";
   out.aiProvider = process.env.AI_PROVIDER ?? "(unset)";
   out.hasCronSecret = Boolean(process.env.CRON_SECRET);
-  out.adminConfigured = Boolean(process.env.ADMIN_PASSWORD);
   out.healthKeyConfigured = Boolean(process.env.HEALTH_KEY);
   out.rateLimitDistributed = Boolean(
     process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN
