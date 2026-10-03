@@ -28,6 +28,11 @@ async function main() {
   const DAY = 86400000;
   const PAST_DAYS = 2;
   const FUTURE_DAYS = 28;
+  // Mirrors the constants in components/TimeAxis.tsx. If either side moves,
+  // this test is the thing that notices.
+  const EXPECTED_PX_PER_DAY = 96;
+  const EXPECTED_CARD_W = 196;
+  const EXPECTED_BAND_W = (PAST_DAYS + FUTURE_DAYS) * EXPECTED_PX_PER_DAY;
   const deadlineOf = (e: EventDTO) =>
     e.endDate ? new Date(e.endDate).getTime() : new Date(e.date).getTime();
 
@@ -66,6 +71,42 @@ async function main() {
         );
       } else {
         console.log(`  [ok] TimeAxis @ ${label}: ${html.length} bytes, ${cards} cards`);
+      }
+
+      // DESKTOP GEOMETRY LOCK.
+      //
+      // The mobile axis is a separate component that renders from the same
+      // model, precisely so that desktop is never edited to accommodate it.
+      // These assertions are what makes that claim checkable instead of merely
+      // stated: if any phase parameterises, scales, or reflows this layout, the
+      // numbers below move and the build goes red.
+      //
+      // Locked to the values in force since the axis shipped:
+      //   PX_PER_DAY 96 · CARD_W 196 · 30 days (2 past + 28 future) => 2880px
+      const band = html.match(/<div class="relative" style="width:(\d+)px/);
+      if (!band) {
+        failures++;
+        console.log(`  [FAIL] TimeAxis @ ${label}: no band element in markup`);
+      } else if (Number(band[1]) !== EXPECTED_BAND_W) {
+        failures++;
+        console.log(
+          `  [FAIL] TimeAxis @ ${label}: band ${band[1]}px, expected ${EXPECTED_BAND_W}px`
+        );
+      }
+
+      // Every card sits in an absolutely-positioned wrapper carrying the width.
+      const cardWidths = [...html.matchAll(/<div class="absolute" style="left:[\d.]+px;top:\d+px;width:(\d+)px"/g)]
+        .map((m) => m[1]);
+      const wrong = cardWidths.filter((w) => w !== String(EXPECTED_CARD_W));
+      if (wrong.length > 0) {
+        failures++;
+        console.log(
+          `  [FAIL] TimeAxis @ ${label}: ${wrong.length}/${cardWidths.length} cards off ${EXPECTED_CARD_W}px (${[...new Set(wrong)].join(", ")})`
+        );
+      } else {
+        console.log(
+          `  [ok] geometry @ ${label}: band ${EXPECTED_BAND_W}px, ${cardWidths.length} cards at ${EXPECTED_CARD_W}px`
+        );
       }
     } catch (err) {
       failures++;

@@ -179,14 +179,19 @@ export function TimeAxis({ events, now: nowIso }: { events: EventDTO[]; now: str
 
   return (
     <div>
-      <div className="mb-5 flex items-end justify-between gap-4">
+      {/* `flex-wrap` + no `shrink-0` on the caption: the pair used to be a
+          single unshrinkable 498px line, which pushed the whole page 131px
+          sideways on a phone even though the band itself scrolls fine. Neither
+          property can bite above 640px, where the row has room to spare, so
+          desktop is untouched. */}
+      <div className="mb-5 flex flex-wrap items-end justify-between gap-x-4 gap-y-3">
         <div>
           <p className="text-[10px] uppercase tracking-[0.2em] text-faint">Spatial axis</p>
           <p className="mt-1.5 font-serif text-[24px] leading-none tracking-tight text-ink">
             The next {model.horizonDays} days
           </p>
         </div>
-        <p className="shrink-0 text-right text-[10px] uppercase tracking-[0.16em] text-faint">
+        <p className="text-left text-[10px] uppercase tracking-[0.16em] text-faint sm:text-right">
           {model.expiringSoon > 0 ? `${model.expiringSoon} expiring this week · ` : ""}
           scroll to traverse time <span className="text-primary">→</span>
           {model.furtherOut > 0 && (

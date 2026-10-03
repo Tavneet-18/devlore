@@ -360,8 +360,11 @@ function Tabs({
   value: string;
   onChange: (v: string) => void;
 }) {
+  // Wraps rather than forcing one 498px line, which was the other half of the
+  // page's sideways scroll on a phone. Above 640px the row has room, so
+  // wrapping never engages on desktop.
   return (
-    <div className="flex items-center gap-4">
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
       {options.map((opt) => (
         <button
           key={opt.id}
