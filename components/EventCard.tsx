@@ -49,7 +49,7 @@ export function Poster({
   return (
     <div
       aria-hidden
-      className={`flex items-center justify-center bg-gradient-to-br from-primary/30 via-raised to-primary-2/20 text-sm font-semibold text-ink/60 ${radius} ${className}`}
+      className={`flex items-center justify-center bg-gradient-to-br from-primary/30 via-raised to-primary-2/20 text-sm font-semibold text-ink/80 ${radius} ${className}`}
     >
       {event.title.slice(0, 2).toUpperCase()}
     </div>

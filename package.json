@@ -9,6 +9,8 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test:axis": "tsx scripts/test-axis-render.tsx",
+    "test:contrast": "tsx scripts/test-contrast.ts",
+    "test:tokens": "tsx scripts/test-tokens.ts",
     "test:browser": "node scripts/test-browser-render.mjs",
     "db:migrate": "prisma migrate deploy",
     "db:push": "prisma db push",

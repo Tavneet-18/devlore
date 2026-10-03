@@ -190,7 +190,7 @@ export function TimeAxis({ events, now: nowIso }: { events: EventDTO[]; now: str
           {model.expiringSoon > 0 ? `${model.expiringSoon} expiring this week · ` : ""}
           scroll to traverse time <span className="text-primary">→</span>
           {model.furtherOut > 0 && (
-            <span className="mt-1 block normal-case tracking-normal text-faint/70">
+            <span className="mt-1 block normal-case tracking-normal text-faint-dim">
               {model.furtherOut} closing beyond the horizon — see the index
             </span>
           )}
@@ -220,12 +220,12 @@ export function TimeAxis({ events, now: nowIso }: { events: EventDTO[]; now: str
               >
                 <span
                   className={`font-serif text-[16px] leading-none ${
-                    isToday ? "text-ink" : dim ? "text-faint/40" : "text-faint"
+                    isToday ? "text-ink" : dim ? "text-faint-dim" : "text-faint"
                   }`}
                 >
                   {date.getDate()}
                 </span>
-                <span className="text-[9px] uppercase tracking-[0.16em] text-faint/50">
+                <span className="text-[9px] uppercase tracking-[0.16em] text-faint-dim">
                   {WEEKDAYS[day]}
                 </span>
               </div>
@@ -236,7 +236,7 @@ export function TimeAxis({ events, now: nowIso }: { events: EventDTO[]; now: str
           {model.months.map((m) => (
             <span
               key={m.label + m.x}
-              className="absolute text-[10px] uppercase tracking-[0.22em] text-faint/70"
+              className="absolute text-[10px] uppercase tracking-[0.22em] text-faint-dim"
               style={{ left: m.x + 2, top: 0 }}
             >
               {m.label}
@@ -267,8 +267,14 @@ export function TimeAxis({ events, now: nowIso }: { events: EventDTO[]; now: str
                 />
                 <Link
                   href={`/events/${p.event.id}`}
-                  className={`block border bg-raised/50 px-3 py-2.5 backdrop-blur-sm transition-colors duration-200 hover:border-line-hi ${
-                    p.past ? "opacity-30" : "opacity-100"
+                  /* A closed deadline is de-emphasised by swapping ink for
+                     muted on the parts that carry text, not by dropping the
+                     whole card's opacity. opacity-30 compounded with the
+                     translucent surface and put the title at ~2.9:1 — it
+                     disappeared, and a past event is still something you might
+                     want to open to see when it ran. */
+                  className={`block border px-3 py-2.5 backdrop-blur-sm transition-colors duration-200 hover:border-line-hi ${
+                    p.past ? "bg-raised/20" : "bg-raised/50"
                   } ${p.nearest ? "border-primary/60" : "border-line"}`}
                   style={{ borderRadius: 2 }}
                 >
@@ -288,16 +294,24 @@ export function TimeAxis({ events, now: nowIso }: { events: EventDTO[]; now: str
                       {EVENT_TYPE_LABELS[p.event.eventType] ?? "Event"}
                     </span>
                   </div>
-                  <p className="mt-1.5 line-clamp-2 font-serif text-[13.5px] leading-snug text-ink">
+                  <p
+                    className={`mt-1.5 line-clamp-2 font-serif text-[13.5px] leading-snug ${
+                      p.past ? "text-muted" : "text-ink"
+                    }`}
+                  >
                     {p.event.title}
                   </p>
-                  <p className="mt-1.5 font-mono text-[10px] uppercase tracking-[0.06em] text-closing">
+                  <p
+                    className={`mt-1.5 font-mono text-[10px] uppercase tracking-[0.06em] ${
+                      p.past ? "text-faint-dim" : "text-closing"
+                    }`}
+                  >
                     {countdown(p.event.endDate ?? p.event.date)}
                   </p>
                   {/* Which date that countdown measures, and where it came
                       from. Two of the four sources publish no registration
                       deadline, so this is not a cosmetic label. */}
-                  <p className="mt-0.5 truncate text-[9px] uppercase tracking-[0.1em] text-faint/70">
+                  <p className="mt-0.5 truncate text-[9px] uppercase tracking-[0.1em] text-faint-dim">
                     {deadlineLabel(p.event.deadlineKind, eventPhase(p.event.date, p.event.endDate))}
                     {" · "}
                     {SOURCE_LABELS[p.event.source] ?? p.event.source}
@@ -311,7 +325,7 @@ export function TimeAxis({ events, now: nowIso }: { events: EventDTO[]; now: str
                       tooltip on desktop. */}
                   {axisSkim(p.event) && (
                     <p
-                      className="mt-1 line-clamp-2 text-[10px] leading-snug text-faint/80"
+                      className="mt-1 line-clamp-2 text-[10px] leading-snug text-faint"
                       title={axisSkim(p.event) ?? undefined}
                     >
                       {axisSkim(p.event)}

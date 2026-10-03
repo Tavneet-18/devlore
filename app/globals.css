@@ -21,11 +21,19 @@
   --color-bg: #07070c;
   --color-surface: #0e0e16;
   --color-raised: #15151f;
-  --color-line: #1e1e2a;
-  --color-line-hi: #2c2c3c;
+  --color-line: #33333e;
+  --color-line-hi: #4d4d57;
   --color-ink: #f4f4f8;
   --color-muted: #9494a8;
-  --color-faint: #5f5f70;
+  /* faint and faint-dim were both raised for legibility. The old values
+     (#5f5f70 dark, #9b99ab light) measured 3.2:1 and 2.6:1 — the light one
+     failed WCAG AA against every surface on the page, and because most faint
+     text is 9–10px uppercase it read as an artefact rather than a label.
+     faint now clears 4.5:1 on bg, surface and raised; faint-dim is the
+     deliberately de-emphasised step and clears 3:1, which is the floor for
+     non-essential text. */
+  --color-faint: #8f8fa8;
+  --color-faint-dim: #6e6e84;
 
   --color-primary: #7c6bff;
   --color-primary-2: #46a6ff;
@@ -109,28 +117,33 @@ html.light {
   --color-bg: #f6f5f1;
   --color-surface: #ffffff;
   --color-raised: #efede6;
-  --color-line: #e2ded2;
-  --color-line-hi: #cfc9b8;
+  --color-line: #c1beb4;
+  --color-line-hi: #a9a69d;
   --color-ink: #16151c;
   --color-muted: #5d5c6e;
-  --color-faint: #9b99ab;
+  --color-faint: #67657a;
+  --color-faint-dim: #7c7a8c;
 
-  --color-primary: #6a58e8;
-  --color-primary-2: #2f7fd6;
+  /* Accents are darker here than in dark mode on purpose. The dark values are
+     tuned for a near-black page; carried over unchanged they land at 3.5–4.1:1
+     on the light raised surface, which fails AA for the 9–10px type the axis
+     card and detail page use them for. Hues are unchanged; only lightness. */
+  --color-primary: #6654df;
+  --color-primary-2: #286cb6;
   --color-cyan: #0e7490;
-  --color-closing: #c2571d;
-  --color-calm: #15803d;
+  --color-closing: #af4e1a;
+  --color-calm: #147b3b;
 
   --color-t-hackathon: #7c3aed;
   --color-t-meetup: #0f766e;
-  --color-t-workshop: #b45309;
-  --color-t-webinar: #e11d48;
+  --color-t-workshop: #ad5009;
+  --color-t-webinar: #cf1b42;
   --color-t-conference: #1d4ed8;
   --color-t-career: #9333ea;
 
-  --color-positive: #15803d;
-  --color-caution: #b45309;
-  --color-critical: #dc2626;
+  --color-positive: #147b3b;
+  --color-caution: #ad5009;
+  --color-critical: #cf2424;
 }
 
 html.light .text-gradient-soft {
