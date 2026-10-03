@@ -47,7 +47,7 @@ export function Nameplate({ dateLine }: { dateLine: string }) {
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-5 sm:px-8 lg:px-10">
         <Link
           href="/"
-          className="shrink-0 font-serif text-[23px] leading-none tracking-tight text-ink transition-colors duration-200 hover:text-primary"
+          className="tap-target shrink-0 font-serif text-[23px] leading-none tracking-tight text-ink transition-colors duration-200 hover:text-primary"
         >
           Devlore
         </Link>
@@ -67,7 +67,7 @@ export function Nameplate({ dateLine }: { dateLine: string }) {
                 key={item.href}
                 href={item.href}
                 onClick={onDiscover}
-                className="border-b border-transparent pb-0.5 text-[11px] uppercase tracking-[0.12em] text-faint transition-colors duration-200 hover:border-primary hover:text-ink"
+                className="tap-target border-b border-transparent pb-0.5 text-[11px] uppercase tracking-[0.12em] text-faint transition-colors duration-200 hover:border-primary hover:text-ink"
               >
                 {item.label}
               </Link>
@@ -75,7 +75,7 @@ export function Nameplate({ dateLine }: { dateLine: string }) {
               <Link
                 key={item.href}
                 href={item.href}
-                className="border-b border-transparent pb-0.5 text-[11px] uppercase tracking-[0.12em] text-faint transition-colors duration-200 hover:border-primary hover:text-ink"
+                className="tap-target border-b border-transparent pb-0.5 text-[11px] uppercase tracking-[0.12em] text-faint transition-colors duration-200 hover:border-primary hover:text-ink"
               >
                 {item.label}
               </Link>

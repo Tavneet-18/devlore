@@ -194,8 +194,8 @@ export function EventExplorer({
 
       {/* Filters — quiet index-style controls */}
       <div className="mt-10 flex flex-col gap-4 border-b border-line pb-5">
-        <div className="flex flex-wrap items-center gap-x-8 gap-y-3">
-          <div className="relative">
+        <div className="flex flex-wrap items-center gap-x-8 gap-y-3 coarse:gap-y-6">
+          <div className="relative tap-target">
             <svg
               className="pointer-events-none absolute left-0 top-1/2 -translate-y-1/2 text-faint"
               width="15"
@@ -225,7 +225,7 @@ export function EventExplorer({
             onChange={setTimeframe as (v: string) => void}
           />
 
-          <label className="flex items-center gap-2 text-[13px] text-muted">
+          <label className="tap-target flex items-center gap-2 text-[13px] text-muted">
             <input
               type="checkbox"
               checked={beginner}
@@ -239,7 +239,7 @@ export function EventExplorer({
         <div className="no-scrollbar flex items-center gap-1 overflow-x-auto text-[13px] whitespace-nowrap">
           <button
             onClick={() => onCity("")}
-            className={`rounded px-2 py-0.5 transition-colors ${
+            className={`tap-target rounded px-2 py-0.5 transition-colors ${
               !city ? "text-ink" : "text-faint hover:text-muted"
             }`}
           >
@@ -249,7 +249,7 @@ export function EventExplorer({
             <button
               key={c}
               onClick={() => onCity(c)}
-              className={`rounded px-2 py-0.5 transition-colors ${
+              className={`tap-target rounded px-2 py-0.5 transition-colors ${
                 city === c ? "text-ink" : "text-faint hover:text-muted"
               }`}
             >
@@ -363,13 +363,18 @@ function Tabs({
   // Wraps rather than forcing one 498px line, which was the other half of the
   // page's sideways scroll on a phone. Above 640px the row has room, so
   // wrapping never engages on desktop.
+  //
+  // `coarse:gap-y-6` matters: the 44px hit areas on these 23px-tall buttons
+  // would otherwise overlap between wrapped rows, and the lower half of a tap
+  // meant for one chip would land on the row above. A 24px row gap puts the
+  // pitch at 47px, clear of the 44px target.
   return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 coarse:gap-y-6">
       {options.map((opt) => (
         <button
           key={opt.id}
           onClick={() => onChange(opt.id)}
-          className={`border-b pb-0.5 text-[13px] transition-colors ${
+          className={`tap-target border-b pb-0.5 text-[13px] transition-colors ${
             value === opt.id
               ? "border-primary text-ink"
               : "border-transparent text-faint hover:text-muted"

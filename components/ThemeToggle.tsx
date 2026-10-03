@@ -49,7 +49,7 @@ export function ThemeToggle() {
       onClick={toggle}
       aria-label={light ? "Switch to dark mode" : "Switch to light mode"}
       title={light ? "Switch to dark mode" : "Switch to light mode"}
-      className="flex h-8 w-8 items-center justify-center rounded-full border border-line text-faint transition-colors duration-200 hover:border-line-hi hover:text-ink"
+      className="tap-target flex h-8 w-8 items-center justify-center rounded-full border border-line text-faint transition-colors duration-200 hover:border-line-hi hover:text-ink"
     >
       {light ? (
         // Moon — shown in light mode, offers dark.

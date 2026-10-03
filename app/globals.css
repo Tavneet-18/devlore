@@ -5,6 +5,17 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
+ * Touch capability, not viewport width.
+ *
+ * A 44px minimum target is a finger rule, not a layout rule. Keying it to a
+ * width breakpoint would inflate a narrow desktop window and miss a 1024px
+ * tablet entirely. `pointer: coarse` asks the device what the input actually
+ * is: a Surface laptop reports `fine` and keeps desktop metrics, a phone
+ * reports `coarse` and gets finger-sized targets.
+ */
+@custom-variant coarse (@media (pointer: coarse));
+
+/*
  * Premium dark theme (Stitch: "Devlore Premium", assets/14198478929046043622).
  *
  * The goal is depth without noise: a blue-tinted near-black base, a violet
@@ -244,6 +255,37 @@ body {
 }
 .no-scrollbar::-webkit-scrollbar {
   display: none;
+}
+
+/*
+ * Touch targets.
+ *
+ * The nav links here are 20px tall and that is correct for a mouse, but a
+ * thumb needs ~44px — the difference between hitting "Saved" and hitting the
+ * gap beside it. Rather than pad the elements, which would reflow the
+ * nameplate and the filter rows, this grows the *hit area* with a
+ * pseudo-element. The layout is untouched, so nothing a reader sees moves and
+ * the desktop design is unaffected.
+ *
+ * It has to be an overlay rather than padding because these rows are tight:
+ * padding would push the chips onto extra lines and change the composition.
+ *
+ * A transparent absolutely-positioned box still belongs to its element for
+ * hit-testing, so the ::after genuinely enlarges the target.
+ */
+@media (pointer: coarse) {
+  .tap-target {
+    position: relative;
+  }
+  .tap-target::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: max(100%, 44px);
+    height: max(100%, 44px);
+    transform: translate(-50%, -50%);
+  }
 }
 
 /*
