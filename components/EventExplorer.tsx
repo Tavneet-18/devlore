@@ -192,8 +192,11 @@ export function EventExplorer({
         </div>
       )}
 
-      {/* Filters — quiet index-style controls */}
-      <div className="mt-10 flex flex-col gap-4 border-b border-line pb-5">
+      {/* Filters — quiet index-style controls.
+          `coarse:gap-8` widens the gap between the filter row and the city
+          row on touch. Their 44px hit areas were overlapping by 7px: centres
+          37.5px apart cannot hold two 44px boxes side by side. */}
+      <div className="mt-10 flex flex-col gap-4 border-b border-line pb-5 coarse:gap-8">
         <div className="flex flex-wrap items-center gap-x-8 gap-y-3 coarse:gap-y-6">
           <div className="relative tap-target">
             <svg

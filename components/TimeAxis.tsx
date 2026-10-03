@@ -6,6 +6,19 @@ import type { EventDTO } from "@/lib/events";
 import { EVENT_TYPE_LABELS } from "@/lib/constants";
 import { countdown, deadlineLabel, eventPhase } from "@/lib/format";
 import { useNow } from "@/lib/use-now";
+import {
+  CARD_GAP,
+  CARD_H,
+  CARD_TOP,
+  CARD_W,
+  DAY,
+  DESKTOP_WINDOW,
+  LANE_H,
+  PX_PER_DAY,
+  WEEKDAYS,
+  startOfDay,
+  useAxisModel,
+} from "@/lib/use-axis-model";
 import { accentFor, accentTextFor } from "./EventCard";
 import { eventOneLiner } from "@/lib/event-summary";
 
@@ -58,29 +71,6 @@ const SOURCE_LABELS: Record<string, string> = {
  * real. Nothing is decorative.
  */
 
-const DAY = 86400000;
-const PX_PER_DAY = 96;
-const PAST_DAYS = 2;
-const FUTURE_DAYS = 28;
-
-const CARD_W = 196;
-const CARD_H = 84;
-const LANE_H = 108;
-const CARD_GAP = 20;
-const CARD_TOP = 34;
-
-const WEEKDAYS = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
-const MONTHS = [
-  "JAN", "FEB", "MAR", "APR", "MAY", "JUN",
-  "JUL", "AUG", "SEP", "OCT", "NOV", "DEC",
-];
-
-function startOfDay(t: number): number {
-  const d = new Date(t);
-  d.setHours(0, 0, 0, 0);
-  return d.getTime();
-}
-
 type Placed = {
   event: EventDTO;
   x: number;
@@ -94,88 +84,46 @@ export function TimeAxis({ events, now: nowIso }: { events: EventDTO[]; now: str
   const serverNow = useMemo(() => new Date(nowIso).getTime(), [nowIso]);
   const now = useNow(serverNow);
 
+  // The window, the days, the month boundaries and the counts all come from
+  // the shared model so the mobile axis reads the same events as this one.
+  // Only the placement below is desktop-specific.
+  const axis = useAxisModel(events, now, DESKTOP_WINDOW);
+
   const model = useMemo(() => {
-    const todayStart = startOfDay(now);
-    const rangeStart = todayStart - PAST_DAYS * DAY;
+    const { inWindow, days, monthStarts, rangeStart } = axis;
 
-    const deadlineOf = (e: EventDTO) =>
-      e.endDate ? new Date(e.endDate).getTime() : new Date(e.date).getTime();
-
-    // A FIXED horizon. This used to stretch to fit the furthest deadline, and
-    // a single event closing in seven weeks stretched the band to 6480px with
-    // thirteen events marooned across it — mostly empty space. The axis is a
-    // near-term view; anything past the horizon simply lives in the index
-    // instead, which already carries the full roster.
-    const rangeEnd = todayStart + FUTURE_DAYS * DAY;
-
-    // Filter on the DEADLINE, matching how cards are positioned below.
-    // Filtering on the start date let an event that opened inside the window
-    // but closes weeks later render past the right edge, stretching the band
-    // to 5188px for a 2880px horizon.
-    //
-    // `rangeEnd` has to be declared above this filter, not below it. The
-    // callback runs during the call, so reading it first threw a TDZ error
-    // that blanked the whole page for every reader.
-    const inWindow = events.filter(
-      (e) => deadlineOf(e) >= rangeStart && deadlineOf(e) <= rangeEnd
-    );
-
-    const totalDays = Math.ceil((rangeEnd - rangeStart) / DAY);
+    const totalDays = days.length;
     const width = totalDays * PX_PER_DAY;
 
-    // The single nearest future deadline gets emphasised.
-    const future = inWindow.filter((e) => deadlineOf(e) >= now);
-    const nearestId = future.length
-      ? future.reduce((a, b) => (deadlineOf(a) <= deadlineOf(b) ? a : b)).id
-      : null;
-
-    // Position by deadline, then stack into lanes so cards never overlap.
+    // Stack into lanes so cards never overlap.
     // This is interval partitioning: each lane remembers the right edge of
     // its last card, and an event takes the first lane that has room.
-    //
-    // The deadline, not the start, is the date a reader can act on. It is
-    // also what every countdown on the page already shows. Positioning by the
-    // start instead collapses every event that opened weeks ago but is still
-    // open onto the left edge, where they stack into a tower.
-    const sorted = [...inWindow].sort((a, b) => deadlineOf(a) - deadlineOf(b));
     const laneEnds: number[] = [];
-    const placed: Placed[] = sorted.map((e) => {
-      const when = deadlineOf(e);
-      const x = Math.max(0, ((startOfDay(when) - rangeStart) / DAY) * PX_PER_DAY);
+    const placed: Placed[] = inWindow.map((row) => {
+      const x = row.offset * PX_PER_DAY;
       let lane = laneEnds.findIndex((end) => x >= end);
       if (lane === -1) {
         lane = laneEnds.length;
         laneEnds.push(0);
       }
       laneEnds[lane] = x + CARD_W + CARD_GAP;
-      return { event: e, x, lane, past: deadlineOf(e) < now, nearest: e.id === nearestId };
+      return { event: row.event, x, lane, past: row.past, nearest: row.nearest };
     });
 
     const maxLanes = Math.max(1, ...placed.map((p) => p.lane + 1));
     const axisY = Math.max(340, CARD_TOP + maxLanes * LANE_H + 54);
     const bandH = axisY + 96;
-    const nowX = Math.min(width, Math.max(0, ((now - rangeStart) / DAY) * PX_PER_DAY));
+    const nowX = Math.min(width, Math.max(0, ((axis.now - rangeStart) / DAY) * PX_PER_DAY));
 
-    const days = Array.from({ length: totalDays }, (_, i) => rangeStart + i * DAY);
-    const horizonDays = Math.round((rangeEnd - todayStart) / DAY);
+    const months = monthStarts.map((m) => ({ x: m.index * PX_PER_DAY, label: m.label }));
 
-    // Month labels, rendered once at each month boundary inside the range.
-    const months: { x: number; label: string }[] = [];
-    let lastMonth = -1;
-    days.forEach((d, i) => {
-      const m = new Date(d).getMonth();
-      if (m !== lastMonth) {
-        lastMonth = m;
-        months.push({ x: i * PX_PER_DAY, label: MONTHS[m] });
-      }
-    });
-
-    const expiringSoon = future.filter((e) => deadlineOf(e) - now < 7 * DAY).length;
+    const expiringSoon = axis.expiringSoon;
     // Not dropped, just not on the axis — the index carries them.
-    const furtherOut = events.filter((e) => deadlineOf(e) > rangeEnd).length;
+    const furtherOut = axis.furtherOut;
+    const horizonDays = axis.horizonDays;
 
     return { placed, days, months, width, bandH, axisY, nowX, expiringSoon, horizonDays, furtherOut };
-  }, [events, now]);
+  }, [axis]);
 
   return (
     <div>
