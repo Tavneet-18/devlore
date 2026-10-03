@@ -209,7 +209,7 @@ export function EventForm() {
             type="button"
             onClick={enhance}
             disabled={enhancing || (!form.title && !form.description)}
-            className="rounded-[2px] border border-line bg-raised/40 px-3 py-1.5 text-[13px] text-ink transition-colors hover:border-line-hi hover:bg-raised disabled:opacity-40"
+            className="tap-target rounded-[2px] border border-line bg-raised/40 px-3 py-1.5 text-[13px] text-ink transition-colors hover:border-line-hi hover:bg-raised disabled:opacity-40"
           >
             {enhancing ? "Generating…" : "Generate"}
           </button>
@@ -264,7 +264,7 @@ function Field({
   children: React.ReactNode;
 }) {
   return (
-    <label className={`block ${className}`}>
+    <label className={`tap-target block ${className}`}>
       <span className="mb-2 block text-[11px] uppercase tracking-[0.12em] text-faint">{label}</span>
       {children}
       {hint && <span className="mt-1 block text-[12px] text-faint">{hint}</span>}
@@ -282,7 +282,7 @@ function Check({
   onChange: (v: boolean) => void;
 }) {
   return (
-    <label className="flex items-center gap-2 text-[14px] text-muted">
+    <label className="tap-target flex items-center gap-2 text-[14px] text-muted">
       <input
         type="checkbox"
         checked={checked}
@@ -294,5 +294,17 @@ function Check({
   );
 }
 
+/**
+ * Shared control styling.
+ *
+ * Deliberately NOT `tap-target`. The fields are 350x39 — five pixels short of
+ * a thumb's 44px — but `input`, `select` and `textarea` are replaced elements
+ * and browsers do not generate pseudo-elements on them, so the overlay would
+ * never paint and the class would be a silent no-op. The hit area is carried
+ * by the `Field` label instead, which wraps the control: a label is a normal
+ * element, it renders its own ::after, and tapping anywhere on it focuses the
+ * field, so the region it covers is genuinely the target rather than a
+ * decorative box over one.
+ */
 const input =
   "w-full rounded-[2px] border border-line bg-raised/40 px-3 py-2 text-[14px] text-ink placeholder:text-faint transition-colors focus:border-primary focus:outline-none";

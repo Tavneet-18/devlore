@@ -44,7 +44,12 @@ export function Nameplate({ dateLine }: { dateLine: string }) {
 
   return (
     <header className="sticky top-0 z-50 border-b border-line bg-bg/80 backdrop-blur-xl">
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-5 sm:px-8 lg:px-10">
+      {/* min-h, not h. At 320px the wordmark (109px) plus three links and a
+            toggle (229px) cannot share a 280px content box, so the nav wraps
+            and the header has to be allowed to grow into a second line. Where
+            everything does fit, min-h-16 renders exactly the 64px that h-16
+            did. */}
+        <div className="mx-auto flex min-h-16 max-w-6xl items-center justify-between gap-4 px-5 sm:px-8 lg:px-10">
         <Link
           href="/"
           className="tap-target shrink-0 font-serif text-[23px] leading-none tracking-tight text-ink transition-colors duration-200 hover:text-primary"
@@ -60,7 +65,13 @@ export function Nameplate({ dateLine }: { dateLine: string }) {
           <span className="text-[10px] uppercase tracking-[0.18em] text-faint">{dateLine}</span>
         </div>
 
-        <nav className="flex shrink-0 items-center gap-4 sm:gap-6">
+        {/* Wraps rather than shrinking. `shrink-0` here is what pushed the page 24px
+            sideways at 320px; letting the nav wrap only engages below ~340px,
+            so the single-line header is unchanged at every width above that.
+            `coarse:gap-y-6` is what keeps the wrapped rows from colliding —
+            two lines of 44px tap overlays 8px apart would overlap, and the
+            lower one would steal taps meant for the upper. */}
+        <nav className="flex flex-wrap items-center justify-end gap-x-4 gap-y-2 coarse:gap-y-6 sm:gap-x-6">
           {NAV.map((item) =>
             item.href === "/" ? (
               <Link

@@ -236,6 +236,11 @@ async function checkMobile() {
       for (const el of document.querySelectorAll("a, button, input, label")) {
         const b = el.getBoundingClientRect();
         if (b.width === 0 || b.height === 0) continue;
+        // aria-hidden subtrees are not tap targets. The submit form's honeypot
+        // is a real <input> parked off-screen at left:-9999px and it measures
+        // 201x24; demanding 44px of it would mean padding something no reader
+        // can reach, and demanding nothing of it is the truth.
+        if (el.closest('[aria-hidden="true"]')) continue;
         let hw = b.width;
         let hh = b.height;
         const cs = getComputedStyle(el, "::after");
@@ -351,17 +356,55 @@ async function checkMobile() {
     await page.close();
   }
 
-  // Overflow on the other routes. The front page is the worst case — it has the
-  // axis, the filter row and 49 index rows — but a sideways scroll anywhere is
-  // a sideways scroll.
-  for (const path of ["/list", "/bookmarks", "/events"]) {
+  // The other routes get the same treatment, not just overflow. Tap targets were
+  // only ever measured on the front page, which is how the submit form shipped
+  // with a 39px field height and a 34px button: nothing on /list was looked at.
+  for (const [path, settle] of [
+    ["/list", "form"],
+    ["/bookmarks", null],
+    ["/events", EVENT_LINKS],
+  ]) {
     const p = await browser.newPage();
     try {
       await p.emulate({ viewport: { width: 390, height: 844, isMobile: true, hasTouch: true }, deviceScaleFactor: 2 });
       await p.goto(`${origin}${path}`, { waitUntil: "networkidle2", timeout: 60000 }).catch(() => {});
-      const o = await p.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
-      if (o <= 0) ok(`no horizontal overflow on ${path}`);
-      else fail(`${path} overflows by ${o}px`);
+      if (settle) await p.waitForSelector(settle, { timeout: 30000 }).catch(() => {});
+      await new Promise((r) => setTimeout(r, 500));
+      const r = await p.evaluate(() => {
+        const de = document.documentElement;
+        const small = [];
+        for (const el of document.querySelectorAll("a, button, input, label")) {
+          const b = el.getBoundingClientRect();
+          if (!b.width || !b.height) continue;
+          if (el.closest('[aria-hidden="true"]')) continue;
+          let hw = b.width;
+          let hh = b.height;
+          const own = getComputedStyle(el, "::after");
+          if (own.content === '""' && own.position === "absolute") {
+            if (own.width.endsWith("px")) hw = Math.max(hw, parseFloat(own.width));
+            if (own.height.endsWith("px")) hh = Math.max(hh, parseFloat(own.height));
+          }
+          const carrier = el.closest(".tap-target");
+          if (carrier && carrier !== el) {
+            const cb = carrier.getBoundingClientRect();
+            const ccs = getComputedStyle(carrier, "::after");
+            if (ccs.content === '""' && ccs.position === "absolute") {
+              if (ccs.width.endsWith("px")) hw = Math.max(hw, cb.width, parseFloat(ccs.width));
+              if (ccs.height.endsWith("px")) hh = Math.max(hh, cb.height, parseFloat(ccs.height));
+            }
+          }
+          if (hw < 44 || hh < 44)
+            small.push(`${el.tagName.toLowerCase()}.${el.className.toString().slice(0, 30)} ${Math.round(hw)}x${Math.round(hh)}`);
+        }
+        return { overflow: de.scrollWidth - de.clientWidth, small };
+      });
+      if (r.overflow <= 0) ok(`no horizontal overflow on ${path}`);
+      else fail(`${path} overflows by ${r.overflow}px`);
+      if (r.small.length === 0) ok(`every control on ${path} has a 44px hit area`);
+      else {
+        fail(`${path}: ${r.small.length} control(s) under 44px`);
+        for (const s of r.small.slice(0, 8)) console.log(`         ${s}`);
+      }
     } finally {
       await p.close();
     }
