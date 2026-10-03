@@ -14,6 +14,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import type { EventDTO } from "../lib/events";
 import { TimeAxis } from "../components/TimeAxis";
+import { TimeAxisMobile } from "../components/TimeAxisMobile";
 import { IndexRow } from "../components/EventCard";
 
 const API = process.env.EVENTS_API ?? "https://devlore-kappa.vercel.app/api/events";
@@ -35,6 +36,11 @@ async function main() {
   const EXPECTED_BAND_W = (PAST_DAYS + FUTURE_DAYS) * EXPECTED_PX_PER_DAY;
   const deadlineOf = (e: EventDTO) =>
     e.endDate ? new Date(e.endDate).getTime() : new Date(e.date).getTime();
+  const startOfDayMs = (t: number) => {
+    const d = new Date(t);
+    d.setHours(0, 0, 0, 0);
+    return d.getTime();
+  };
 
   // The axis takes the closable set — everything without an event-end date.
   const closable = events.filter((e) => e.deadlineKind !== "event-end");
@@ -137,6 +143,64 @@ async function main() {
     } catch (err) {
       failures++;
       console.log(`  [FAIL] TimeAxis ${label}: ${(err as Error).message}`);
+    }
+  }
+
+  // The mobile axis: same model, rotated. Rendered at the same three clock
+  // positions so both windows are exercised with events on their edges.
+  //
+  // Its two invariants are structural rather than geometric, because there is
+  // no width to lock: every date in the window gets a row whether or not
+  // anything closes on it (the empty space is part of what the axis shows),
+  // and every event appears exactly once.
+  const MOBILE_PAST_DAYS = 2;
+  const MOBILE_FUTURE_DAYS = 7;
+  const MOBILE_DAYS = MOBILE_PAST_DAYS + MOBILE_FUTURE_DAYS;
+
+  for (const [label, at] of [
+    ["now", now],
+    ["+90d", now + 90 * DAY],
+    ["-90d", now - 90 * DAY],
+  ] as const) {
+    const iso = new Date(at).toISOString();
+    const from = startOfDayMs(at) - MOBILE_PAST_DAYS * DAY;
+    const to = startOfDayMs(at) + MOBILE_FUTURE_DAYS * DAY;
+    const expected = closable.filter((e) => {
+      const d = deadlineOf(e);
+      return d >= from && d <= to;
+    }).length;
+
+    try {
+      const html = renderToStaticMarkup(<TimeAxisMobile events={closable} now={iso} />);
+      const rowCount = (html.match(/flex gap-3 border-t py-2\.5/g) ?? []).length;
+      const cards = (html.match(/href="\/events\//g) ?? []).length;
+
+      if (rowCount !== MOBILE_DAYS) {
+        failures++;
+        console.log(`  [FAIL] TimeAxisMobile @ ${label}: ${rowCount} date rows, expected ${MOBILE_DAYS}`);
+      } else if (cards !== expected) {
+        failures++;
+        console.log(`  [FAIL] TimeAxisMobile @ ${label}: ${cards} cards, ${expected} events in window`);
+      } else {
+        console.log(`  [ok] TimeAxisMobile @ ${label}: ${rowCount} date rows, ${cards} cards`);
+      }
+    } catch (err) {
+      failures++;
+      console.log(`  [FAIL] TimeAxisMobile @ ${label}: ${(err as Error).message}`);
+    }
+  }
+
+  // Same degenerate cases as the desktop axis: one event, and none.
+  for (const [label, rows] of [
+    ["single", closable.slice(0, 1)],
+    ["empty", []],
+  ] as const) {
+    try {
+      renderToStaticMarkup(<TimeAxisMobile events={rows as EventDTO[]} now={new Date(now).toISOString()} />);
+      console.log(`  [ok] TimeAxisMobile ${label}`);
+    } catch (err) {
+      failures++;
+      console.log(`  [FAIL] TimeAxisMobile ${label}: ${(err as Error).message}`);
     }
   }
 

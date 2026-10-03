@@ -5,6 +5,7 @@ import type { EventDTO } from "@/lib/events";
 import { DISCOVER_RESET_EVENT, EVENT_TYPES, EVENT_TYPE_LABELS } from "@/lib/constants";
 import { IndexRow } from "./EventCard";
 import { TimeAxis } from "./TimeAxis";
+import { TimeAxisMobile } from "./TimeAxisMobile";
 import { SkeletonCard } from "./SkeletonCard";
 
 const TIMEFRAMES = [
@@ -188,7 +189,17 @@ export function EventExplorer({
       {/* The spatial time axis — the organising structure of the page. */}
       {closing.length > 0 && (
         <div className="mt-12">
-          <TimeAxis events={closing} now={nowIso} />
+          {/* Both axes render server-side and only CSS decides which one shows,
+              so there is no hydration mismatch and the desktop layout is never
+              reflowed to accommodate the phone one. `display: none` also keeps
+              the hidden one out of the accessibility tree, so a screen reader
+              is not offered the same events twice. */}
+          <div className="hidden md:block">
+            <TimeAxis events={closing} now={nowIso} />
+          </div>
+          <div className="md:hidden">
+            <TimeAxisMobile events={closing} now={nowIso} />
+          </div>
         </div>
       )}
 

@@ -50,13 +50,24 @@ function unescapeClass(raw: string): string {
 }
 
 const generated = new Set<string>();
+/**
+ * Every class the stylesheet actually contains, colour or not.
+ *
+ * Needed because the failure this script exists to catch is not limited to
+ * colour tokens: Tailwind's scanner reads source *text*, so a utility assembled
+ * by interpolation produces no rule and no error. `grid-cols-${MAX_ACROSS}` in
+ * TimeAxisMobile emitted nothing, which meant a date with three events got no
+ * grid columns and the cards stacked vertically — the opposite of the intent,
+ * discovered only by grepping the built CSS for the class.
+ */
+const generatedAny = new Set<string>();
 
 for (const name of readdirSync(CSS_DIR)) {
   if (!name.endsWith(".css")) continue;
   const css = readFileSync(join(CSS_DIR, name), "utf8");
 
   // exec rather than matchAll: on this project's tsconfig target, iterating a
-  // matchAll result silently stops after the first few matches.
+  // matchAll result silently stops after after the first few matches.
   // The leading `{` matters: Tailwind wraps `hover:` variants in
   // `@media (hover:hover){.hover\:border-line-hi:hover{...}}`, so a rule can
   // open straight after a brace with no selector before it.
@@ -69,6 +80,7 @@ for (const name of readdirSync(CSS_DIR)) {
     // utility, so the bare name resolves whether or not it was ever used
     // unprefixed.
     for (const segment of unescapeClass(m[2]).split(":")) {
+      generatedAny.add(segment);
       if (!IS_UTILITY.test(segment)) continue;
       generated.add(segment);
       // An opacity modifier is part of the selector, not the token:
@@ -123,6 +135,21 @@ function sourceFiles(dir: string, out: string[] = []): string[] {
   return out;
 }
 
+/**
+ * Drop comments before scanning.
+ *
+ * These files explain the failure modes they are guarded against, so they quote
+ * the very class names that must not appear in code — `grid-cols-${n}` and
+ * `text-tertiary` both appear in prose here. Scanning raw text would report the
+ * documentation as the bug it documents.
+ *
+ * Naive on strings and regex literals, which is fine: a mangled `https://` does
+ * not produce a class name, and these patterns cannot occur in a URL.
+ */
+function stripComments(text: string): string {
+  return text.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/(^|[^:])\/\/[^\n]*/g, "$1 ");
+}
+
 const offenders: string[] = [];
 
 for (const file of [
@@ -130,7 +157,7 @@ for (const file of [
   ...sourceFiles(join(ROOT, "components")),
   ...sourceFiles(join(ROOT, "lib")),
 ]) {
-  const text = readFileSync(file, "utf8");
+  const text = stripComments(readFileSync(file, "utf8"));
   const rel = relative(ROOT, file).replace(/\\/g, "/");
   const re = new RegExp(CANDIDATE.source, "g");
   let m: RegExpExecArray | null;
@@ -153,6 +180,69 @@ if (unique.length > 0) {
   process.exit(1);
 }
 
+/* --------------------------- structural utilities built by interpolation */
+
+/**
+ * Utilities whose value is a small integer, and which are therefore tempting to
+ * assemble with a template literal. Tailwind cannot see those and emits no rule,
+ * so the element silently falls back to a default and looks wrong rather than
+ * broken — which is exactly how `grid-cols-${MAX_ACROSS}` shipped a mobile axis
+ * that stacked three cards vertically when the whole point was that they sit
+ * side by side.
+ *
+ * Only unambiguous prefixes are listed. `w-`/`h-`/`gap-` are deliberately
+ * absent: they carry arbitrary values (`w-[200px]`) and standard sizes alike,
+ * which makes a source reference too ambiguous to assert on.
+ */
+const STRUCTURAL = /\b(grid-cols|col-span)-(\d+)\b/g;
+/**
+ * The same prefixes assembled at runtime. `grid-cols-${n}` leaves no literal
+ * name to check, so it has to be found directly — and it is the more dangerous
+ * of the two, because nothing else in the build will mention it.
+ */
+const STRUCTURAL_INTERPOLATED = /\b(grid-cols|col-span)-\$\{/g;
+const structuralOffenders: string[] = [];
+
+for (const file of [
+  ...sourceFiles(join(ROOT, "app")),
+  ...sourceFiles(join(ROOT, "components")),
+  ...sourceFiles(join(ROOT, "lib")),
+]) {
+  const text = stripComments(readFileSync(file, "utf8"));
+  const rel = relative(ROOT, file).replace(/\\/g, "/");
+
+  const interp = new RegExp(STRUCTURAL_INTERPOLATED.source, "g");
+  let im: RegExpExecArray | null;
+  while ((im = interp.exec(text)) !== null) {
+    if (im[0].length === 0) interp.lastIndex++;
+    structuralOffenders.push(`${rel}: ${im[1]}-\${...} (assembled by interpolation)`);
+  }
+
+  const re = new RegExp(STRUCTURAL.source, "g");
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) !== null) {
+    if (m[0].length === 0) re.lastIndex++;
+    const cls = `${m[1]}-${m[2]}`;
+    if (generatedAny.has(cls)) continue;
+    structuralOffenders.push(`${rel}: ${cls}`);
+  }
+}
+
+const structuralUnique = [...new Set(structuralOffenders)].sort();
+
+if (structuralUnique.length > 0) {
+  console.error(
+    `FAIL — ${structuralUnique.length} structural utility/utilities produced no CSS rule:`
+  );
+  for (const o of structuralUnique) console.error(`  ${o}`);
+  console.error(
+    "\nTailwind scans source text: a class built by interpolation is never " +
+      "generated, and one that is spelled out but ungenerated is a typo. " +
+      "Write each one out as a literal."
+  );
+  process.exit(1);
+}
+
 console.log(
-  `PASS — every colour utility in app/, components/ and lib/ resolves (${generated.size} class names in the built CSS).`,
+  `PASS — every colour utility in app/, components/ and lib/ resolves (${generated.size} class names in the built CSS).`
 );
