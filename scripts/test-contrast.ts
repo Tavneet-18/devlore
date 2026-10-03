@@ -109,8 +109,17 @@ const TEXT_4_5 = [
   "t-career",
 ];
 
-/** Deliberately de-emphasised labels: axis month headers, weekend dates,
- *  the deadline-kind line on a past card. Non-essential, so 3:1. */
+/**
+ * Deliberately de-emphasised labels: axis month headers, weekday letters,
+ * weekend dates, the deadline-kind line on a past card.
+ *
+ * These were originally held to 3:1 on the reasoning that "non-essential" text
+ * can be quiet. That was the wrong call — a 9px weekday letter at 3.8:1 reads
+ * as a broken render, not as restraint, and the audit of the painted page put
+ * 78 elements in that band on the front page alone. Held to the same 4.5:1 as
+ * everything else; the hierarchy now comes from size and tracking, which is
+ * how it should have been doing it all along.
+ */
 const TEXT_3 = ["faint-dim"];
 
 const SURFACES = ["bg", "surface", "raised"];
@@ -159,7 +168,9 @@ function check(mode: string, token: string, required: number) {
 
 for (const mode of Object.keys(MODES)) {
   for (const t of TEXT_4_5) check(mode, t, 4.5);
-  for (const t of TEXT_3) check(mode, t, 3);
+  /* faint-dim is listed above at 3:1 for its original intent, but is checked
+     at 4.5 like the rest — see the note there. */
+  for (const t of TEXT_3) check(mode, t, 4.5);
 }
 
 /* The primary button inverts: `text-bg` sits on a violet→blue gradient. */
