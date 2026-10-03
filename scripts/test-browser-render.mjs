@@ -107,6 +107,84 @@ async function check(path, { settle, requireText = [], forbidText = [], expect =
   }
 }
 
+/**
+ * Desktop axis geometry, measured in a real browser.
+ *
+ * SSR cannot catch this class of bug: the server emits positions and the
+ * browser decides heights from the rendered text. `LANE_H` sat at 108px while
+ * real cards measure 131–164px, so lanes overlapped — 34 of 35 cards collided,
+ * worst case 196px wide by 37px deep, with the upper card's translucent panel
+ * over the lower one's title. It type-checked, linted, built, and every server
+ * test passed the entire time, because nothing ever laid the cards out.
+ *
+ * Two cards overlap only when their x-ranges AND y-ranges both intersect.
+ * Cards in different lanes share a y-range but sit at different x, so comparing
+ * them as collisions is a false positive.
+ */
+async function checkAxisGeometry() {
+  console.log(`\naxis geometry @ 1440`);
+  const page = await browser.newPage();
+  await page.setViewport({ width: 1440, height: 900 });
+  try {
+    await page.goto(`${origin}/`, { waitUntil: "networkidle2", timeout: 60000 });
+    await page.waitForSelector(EVENT_LINKS, { timeout: 30000 });
+    await new Promise((r) => setTimeout(r, 800));
+
+    const g = await page.evaluate(() => {
+      const de = document.documentElement;
+      const cards = [...document.querySelectorAll('a[href^="/events/"]')].filter(
+        (a) => a.className.includes("backdrop-blur")
+      );
+      const boxes = cards.map((a) => {
+        const b = a.getBoundingClientRect();
+        return { l: b.left, r: b.right, t: b.top, b: b.bottom };
+      });
+
+      let worst = 0;
+      let pairs = 0;
+      for (let i = 0; i < boxes.length; i++) {
+        for (let j = i + 1; j < boxes.length; j++) {
+          const a = boxes[i];
+          const c = boxes[j];
+          const xo = Math.min(a.r, c.r) - Math.max(a.l, c.l);
+          const yo = Math.min(a.b, c.b) - Math.max(a.t, c.t);
+          if (xo > 1 && yo > 1) {
+            pairs++;
+            worst = Math.max(worst, Math.min(xo, yo));
+          }
+        }
+      }
+
+      const band = document.querySelector('div[style*="width: 2880px"], div[style*="width:2880px"]');
+      return {
+        overflow: de.scrollWidth - de.clientWidth,
+        cards: boxes.length,
+        pairs,
+        worst: Math.round(worst),
+        cardW: boxes.length ? Math.round(cards[0].getBoundingClientRect().width) : 0,
+        bandW: band ? Math.round(band.getBoundingClientRect().width) : 0,
+      };
+    });
+
+    if (g.overflow <= 0) ok("no horizontal overflow at 1440");
+    else fail(`horizontal overflow at 1440: ${g.overflow}px`);
+
+    if (g.cards > 0) ok(`${g.cards} axis cards`);
+    else fail("no axis cards rendered");
+
+    if (g.pairs === 0) ok("no axis cards overlap");
+    else fail(`${g.pairs} overlapping card pairs, deepest ${g.worst}px`);
+
+    if (g.cardW === 196) ok("card width 196px");
+    else fail(`card width ${g.cardW}px, expected 196px`);
+
+    if (g.bandW === 2880) ok("band width 2880px");
+    else fail(`band width ${g.bandW}px, expected 2880px`);
+  } finally {
+    await page.close();
+  }
+}
+
 try {
   // The front page. The axis and the index are both client-rendered here.
   const home = await check("/", {
@@ -115,6 +193,8 @@ try {
     forbidText: [/couldn't load|application error|this is taking too long/i],
     expect: (n) => n > 0,
   });
+
+  await checkAxisGeometry();
 
   // /list is the submit form, not an index — it carries the editable fields.
   await check("/list", {

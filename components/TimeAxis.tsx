@@ -8,13 +8,13 @@ import { countdown, deadlineLabel, eventPhase } from "@/lib/format";
 import { useNow } from "@/lib/use-now";
 import {
   CARD_GAP,
-  CARD_H,
   CARD_TOP,
   CARD_W,
   DAY,
   DESKTOP_WINDOW,
   LANE_H,
   PX_PER_DAY,
+  TETHER_FROM,
   WEEKDAYS,
   startOfDay,
   useAxisModel,
@@ -206,7 +206,12 @@ export function TimeAxis({ events, now: nowIso }: { events: EventDTO[]; now: str
           {/* Events, floating above the axis and tethered to their date. */}
           {model.placed.map((p) => {
             const top = CARD_TOP + p.lane * LANE_H;
-            const tether = model.axisY - top - CARD_H;
+            // The tether starts at a nominal 84px, short of the card's real
+            // bottom (131–164px). That reads correctly only because the card is
+            // painted over the shortfall, so the visible line runs from the
+            // card's true bottom to the axis. See LANE_H in lib/use-axis-model
+            // for why there is deliberately no CARD_H constant.
+            const tether = model.axisY - top - TETHER_FROM;
             return (
               <div
                 key={p.event.id}
@@ -216,7 +221,7 @@ export function TimeAxis({ events, now: nowIso }: { events: EventDTO[]; now: str
                 <div
                   aria-hidden
                   className="absolute left-1/2 w-px bg-line"
-                  style={{ top: CARD_H, height: Math.max(0, tether) }}
+                  style={{ top: TETHER_FROM, height: Math.max(0, tether) }}
                 />
                 <Link
                   href={`/events/${p.event.id}`}

@@ -25,10 +25,43 @@ export const DAY = 86400000;
 /** Desktop band geometry. Locked by scripts/test-axis-render.tsx. */
 export const PX_PER_DAY = 96;
 export const CARD_W = 196;
-export const CARD_H = 84;
-export const LANE_H = 108;
+
+/**
+ * Vertical room per lane.
+ *
+ * This has to exceed the tallest card the axis can produce. It was 108px while
+ * real cards measure 131–164px, so lanes overlapped: 34 of 35 cards collided,
+ * worst case 196px wide by 37px deep, and because a card is `bg-raised/50` with
+ * a backdrop blur, the upper card's translucent panel sat over the lower one
+ * and both titles were muddled together. The axis stacked rather than
+ * overlapped only in the source, never on screen.
+ *
+ * 180px is the measured worst case (164px) plus a 16px gutter. The card's
+ * height is structurally bounded — title and skim are both line-clamp-2 — so
+ * this does not need to grow with content. `scripts/test-browser-render.mjs`
+ * asserts the rendered cards do not overlap, so if that ever stops being true
+ * the suite says so rather than the page.
+ *
+ * Note there is no CARD_H constant. The cards are not a fixed height: they run
+ * from 131px to 164px depending on whether the title and skim wrap. The tether
+ * to the axis line is drawn from 84px, which lands correctly only because the
+ * card covers the shortfall. Correct by accident, and `CARD_H` recorded that
+ * accident as though it were the truth.
+ */
+export const LANE_H = 180;
 export const CARD_GAP = 20;
 export const CARD_TOP = 34;
+
+/**
+ * Where the tether to the axis line is drawn from, measured down the card.
+ *
+ * Deliberately less than the tallest card, and deliberately not equal to the
+ * shortest one either. There is no correct constant: the card's height depends
+ * on whether its title and skim wrap, and SSR cannot measure that. Starting
+ * short works because the card is painted over the shortfall, so the line a
+ * reader sees always begins at the card's true bottom.
+ */
+export const TETHER_FROM = 84;
 
 export const DESKTOP_WINDOW = { pastDays: 2, futureDays: 28 } as const;
 
