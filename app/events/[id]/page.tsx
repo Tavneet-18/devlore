@@ -177,7 +177,10 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
           <Link href="/" className="transition-colors hover:text-ink">
             Discover
           </Link>
-          <span className="mx-2 text-line-hi">/</span>
+          {/* faint-dim, not line-hi: --color-line-hi is a hairline tuned to be
+              1px-visible against the page, which is the wrong target for a
+              glyph. As text it measured 2.4:1 and vanished. */}
+          <span className="mx-2 text-faint-dim">/</span>
           <span className="truncate normal-case tracking-normal text-muted">{dto.title}</span>
         </nav>
         <BookmarkButton eventId={dto.id} initialBookmarked={!!bookmark} />

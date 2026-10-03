@@ -12,14 +12,15 @@
  * foreground and background by compositing alpha up the ancestor chain, and
  * reports the worst ratios per mode.
  *
- * Usage: node scripts/audit-contrast.mjs [url]      (default: production)
+ * Usage: node scripts/audit-contrast.mjs [url ...]   (default: the four live routes)
  * Exits non-zero if any visible text lands under 3:1, which is the floor for
  * large text and the point below which something is broken rather than quiet.
  */
 
 import puppeteer from "puppeteer-core";
 
-const URL = process.argv[2] ?? "https://devlore-kappa.vercel.app/";
+const ORIGIN = process.env.DEVLORE_ORIGIN ?? "https://devlore-kappa.vercel.app";
+const URLS = process.argv.length > 2 ? process.argv.slice(2) : [`${ORIGIN}/`, `${ORIGIN}/list`, `${ORIGIN}/bookmarks`];
 const CHROME = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";
 
 const AUDIT = `
@@ -64,7 +65,30 @@ const AUDIT = `
     const layers = [];
     let node = el;
     while (node && node !== document.documentElement) {
-      const c = parse(getComputedStyle(node).backgroundColor);
+      const cs = getComputedStyle(node);
+      // A gradient paints an opaque background that backgroundColor does not
+      // report. Without this, white-on-violet buttons measured 1:1 against the
+      // page -- the label looks broken while the browser paints it correctly.
+      if (cs.backgroundImage && cs.backgroundImage.includes("gradient")) {
+        const stops = [...cs.backgroundImage.matchAll(/rgba?\\([^)]+\\)/g)]
+          .map((m) => parse(m[0]))
+          .filter(Boolean);
+        if (stops.length) {
+          let sum = { r: 0, g: 0, b: 0 };
+          for (const s of stops) {
+            sum.r += s.r;
+            sum.g += s.g;
+            sum.b += s.b;
+          }
+          return {
+            r: sum.r / stops.length,
+            g: sum.g / stops.length,
+            b: sum.b / stops.length,
+            a: 1,
+          };
+        }
+      }
+      const c = parse(cs.backgroundColor);
       if (c && c.a > 0) {
         layers.push(c);
         if (c.a === 1) break;
@@ -142,32 +166,35 @@ let hardFailures = 0;
 try {
   const page = await browser.newPage();
   await page.setViewport({ width: 1440, height: 1200 });
-  await page.goto(URL, { waitUntil: "networkidle2", timeout: 60000 });
-  try {
-    await page.waitForSelector('a[href^="/events/"]', { timeout: 30000 });
-  } catch {
-    console.log("  (no event links rendered; auditing whatever is on the page)");
-  }
-  await new Promise((r) => setTimeout(r, 2000));
 
-  for (const mode of ["dark", "light"]) {
-    await page.evaluate((m) => {
-      document.documentElement.classList.toggle("light", m === "light");
-    }, mode);
-    await new Promise((r) => setTimeout(r, 400));
-
-    const rows = await page.evaluate(AUDIT);
-    rows.sort((a, b) => a.r - b.r);
-    const below45 = rows.filter((x) => x.r < 4.5);
-    const below30 = rows.filter((x) => x.r < 3);
-
-    console.log(`\n=== ${mode} — ${rows.length} text elements ===`);
-    console.log(`  under 4.5:1  ${below45.length}`);
-    console.log(`  under 3.0:1  ${below30.length}`);
-    for (const r of rows.slice(0, 12)) {
-      console.log(`   ${String(r.r).padStart(6)}:1  ${r.where}\n             "${r.text}"`);
+  for (const target of URLS) {
+    await page.goto(target, { waitUntil: "networkidle2", timeout: 60000 });
+    try {
+      await page.waitForSelector('a[href^="/events/"]', { timeout: 30000 });
+    } catch {
+      console.log("  (no event links rendered; auditing whatever is on the page)");
     }
-    hardFailures += below30.length;
+    await new Promise((r) => setTimeout(r, 2000));
+
+    for (const mode of ["dark", "light"]) {
+      await page.evaluate((m) => {
+        document.documentElement.classList.toggle("light", m === "light");
+      }, mode);
+      await new Promise((r) => setTimeout(r, 400));
+
+      const rows = await page.evaluate(AUDIT);
+      rows.sort((a, b) => a.r - b.r);
+      const below45 = rows.filter((x) => x.r < 4.5);
+      const below30 = rows.filter((x) => x.r < 3);
+
+      console.log(`\n=== ${target} ${mode} — ${rows.length} text elements ===`);
+      console.log(`  under 4.5:1  ${below45.length}`);
+      console.log(`  under 3.0:1  ${below30.length}`);
+      for (const r of rows.slice(0, 6)) {
+        console.log(`   ${String(r.r).padStart(6)}:1  ${r.where}\n             "${r.text}"`);
+      }
+      hardFailures += below30.length;
+    }
   }
 } finally {
   await browser.close();
