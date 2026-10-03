@@ -298,6 +298,31 @@ body {
   background-size: 22px 22px;
 }
 
+/*
+ * Type floor on small screens.
+ *
+ * The design sets a lot of text at 9px and 10px — date rail numerals, month
+ * labels, type captions, the event counter. On a 27-inch monitor those read as
+ * fine print, which is what they are for. On a phone, held 30cm from the eye
+ * in daylight, 294 of them are below the smallest size a reader can resolve
+ * without pinching.
+ *
+ * Overridden rather than edited at the source because there are 294 of them
+ * across a dozen files and the change is a property of the *screen*, not of any
+ * element: the same 10px caption should be 10px on a desktop and larger on a
+ * phone, which is the opposite of what editing the components would produce.
+ *
+ * Plain CSS beats the layered Tailwind utilities, so this wins without
+ * `!important`, and it cannot reach above 767px — where the desktop axis is
+ * visible and its own deliberately fine type must stay as designed.
+ */
+@media (max-width: 767px) {
+  .text-\[9px\],
+  .text-\[10px\] {
+    font-size: 11px;
+  }
+}
+
 /* The deadline ticker fades out at both edges so it never hard-clips. */
 .ticker-mask {
   -webkit-mask-image: linear-gradient(

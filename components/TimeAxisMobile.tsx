@@ -112,7 +112,10 @@ export function TimeAxisMobile({
         the cards cannot drift out of step because they are the same element,
         rather than two columns pretending to line up.
       */}
-      <div className="border-b border-line">
+      {/* `data-axis="mobile"` is a testing hook. This view has no intrinsic
+          width to lock the way the desktop band has one, so its guards have to
+          find it by identity rather than by geometry. */}
+      <div className="border-b border-line" data-axis="mobile">
         {days.map((d, i) => {
           const date = new Date(d);
           const rows = rowsByDay.get(d) ?? [];
