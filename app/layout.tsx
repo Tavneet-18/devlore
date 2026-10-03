@@ -4,7 +4,7 @@ import "./globals.css";
 import { Nameplate } from "@/components/Nameplate";
 import { Footer } from "@/components/Footer";
 import { THEME_INIT_SCRIPT } from "@/components/ThemeToggle";
-import { dateLine, issueNumber } from "@/lib/issue";
+import { dateLine } from "@/lib/issue";
 
 const spaceGrotesk = Space_Grotesk({
   variable: "--font-space-grotesk",
@@ -29,9 +29,9 @@ const newsreader = Newsreader({
 });
 
 /**
- * The nameplate carries today's date and issue number, so the shell has to be
- * rendered per request. Without this the layout is prerendered at build time
- * and the issue marker silently freezes on whatever day the build ran.
+ * The nameplate carries today's date, so the shell has to be rendered per
+ * request. Without this the layout is prerendered at build time and the date
+ * silently freezes on whatever day the build ran.
  */
 export const dynamic = "force-dynamic";
 
@@ -58,7 +58,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         </div>
 
         <div className="relative z-10 flex min-h-full flex-col">
-          <Nameplate dateLine={dateLine(now)} issue={issueNumber(now)} />
+          <Nameplate dateLine={dateLine(now)} />
           <main className="flex-1">{children}</main>
           <Footer />
         </div>

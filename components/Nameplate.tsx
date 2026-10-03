@@ -11,8 +11,8 @@ import { DISCOVER_RESET_EVENT } from "@/lib/constants";
  * It replaced a conventional sticky navbar that sat directly above a
  * newspaper-style masthead. Two branded bars is the clearest possible
  * "SaaS template" signal, and it was fighting the editorial concept on every
- * page. The nameplate absorbs both roles: wordmark, date, issue number and
- * navigation on a single line.
+ * page. The nameplate absorbs both roles: wordmark, date and navigation on a
+ * single line.
  *
  * Note there is no logo tile and no filled call-to-action. The word is the
  * mark, and a publication does not put a marketing button in its masthead.
@@ -32,7 +32,7 @@ const NAV = [
   { href: "/list", label: "Submit" },
 ];
 
-export function Nameplate({ dateLine, issue }: { dateLine: string; issue: number }) {
+export function Nameplate({ dateLine }: { dateLine: string }) {
   const pathname = usePathname();
 
   function onDiscover(e: React.MouseEvent) {
@@ -52,12 +52,12 @@ export function Nameplate({ dateLine, issue }: { dateLine: string; issue: number
           Devlore
         </Link>
 
-        <div className="hidden shrink-0 flex-col items-center gap-1 md:flex">
+        {/* Date only. The "Issue N" marker and its dot that used to sit here
+            were decoration: a numbered edition implies an archive of earlier
+            issues, which this site does not have, and it read as a badge
+            crowding the wordmark. */}
+        <div className="hidden shrink-0 md:block">
           <span className="text-[10px] uppercase tracking-[0.18em] text-faint">{dateLine}</span>
-          <span className="flex items-center gap-2 text-[10px] uppercase tracking-[0.18em] text-faint">
-            <span className="h-1 w-1 rounded-full bg-cyan" aria-hidden />
-            Issue {issue}
-          </span>
         </div>
 
         <nav className="flex shrink-0 items-center gap-4 sm:gap-6">

@@ -1,9 +1,10 @@
 import { HomeClient } from "@/components/HomeClient";
 
 /**
- * The front page is a dated issue, so the reference time is resolved here on
- * the server rather than read during client render. The nameplate's own date
- * and issue number live in the root layout.
+ * The reference time for the axis and the countdowns is resolved here on the
+ * server rather than read during client render, so the server-rendered markup
+ * and the first client render agree. The nameplate's date lives in the root
+ * layout.
  */
 export const dynamic = "force-dynamic";
 
