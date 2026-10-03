@@ -24,17 +24,17 @@ export function Footer() {
             </p>
           </div>
 
-          <nav className="flex flex-wrap items-center gap-x-7 gap-y-2 text-[11px] uppercase tracking-[0.12em] text-faint">
-            <Link href="/" className="transition-colors duration-200 hover:text-ink">
+          <nav className="flex flex-wrap items-center gap-x-7 gap-y-2 text-[11px] uppercase tracking-[0.12em] text-faint coarse:gap-y-6">
+            <Link href="/" className="tap-target transition-colors duration-200 hover:text-ink">
               Discover
             </Link>
-            <Link href="/bookmarks" className="transition-colors duration-200 hover:text-ink">
+            <Link href="/bookmarks" className="tap-target transition-colors duration-200 hover:text-ink">
               Saved
             </Link>
-            <Link href="/list" className="transition-colors duration-200 hover:text-ink">
+            <Link href="/list" className="tap-target transition-colors duration-200 hover:text-ink">
               Submit
             </Link>
-            <Link href="/admin" className="transition-colors duration-200 hover:text-ink">
+            <Link href="/admin" className="tap-target transition-colors duration-200 hover:text-ink">
               Admin
             </Link>
           </nav>

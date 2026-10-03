@@ -142,7 +142,7 @@ export function IndexRow({ event, index }: { event: EventDTO; index: number }) {
             {typeLabel}
           </span>
         </div>
-        <Link href={`/events/${event.id}`} className="mt-1.5 block">
+        <Link href={`/events/${event.id}`} className="tap-target mt-1.5 block">
           <h3 className="line-clamp-1 font-serif text-[23px] font-normal leading-tight tracking-[-0.005em] text-ink transition-colors group-hover:text-white">
             {event.title}
           </h3>
@@ -176,7 +176,7 @@ export function IndexRow({ event, index }: { event: EventDTO; index: number }) {
         </p>
         <Link
           href={`/events/${event.id}`}
-          className="mt-2 inline-block text-[13px] font-semibold text-primary transition-colors hover:text-[#9b8fff]"
+          className="tap-target mt-2 inline-block text-[13px] font-semibold text-primary transition-colors hover:text-[#9b8fff]"
         >
           View →
         </Link>
