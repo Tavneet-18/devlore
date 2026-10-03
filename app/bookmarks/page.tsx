@@ -35,7 +35,10 @@ export default async function BookmarksPage() {
       {events.length === 0 ? (
         <div className="mt-10 border-y border-line py-24 text-center">
           <p className="text-sm text-muted">You have not saved any events yet.</p>
-          <Link href="/" className="mt-3 inline-block text-[13px] font-semibold text-primary hover:underline">
+          <Link
+            href="/"
+            className="tap-target mt-3 inline-block text-[13px] font-semibold text-primary hover:underline"
+          >
             Browse events →
           </Link>
         </div>
