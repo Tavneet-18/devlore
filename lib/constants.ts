@@ -37,6 +37,13 @@ export const BOOKMARK_COOKIE = "devlore_visitor";
 export const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 365;
 
 /**
+ * Fired by the nameplate's Discover link when already on the front page, where
+ * a same-URL navigation would remount nothing. EventExplorer listens and
+ * resets its filters, so the button always visibly does something.
+ */
+export const DISCOVER_RESET_EVENT = "devlore:reset-filters";
+
+/**
  * Platforms that vet their own listings. Events pulled from these sources are
  * published immediately — the platform already did the vetting, and the
  * organizer is whoever ran the event, not the platform.

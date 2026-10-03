@@ -3,6 +3,7 @@ import { Newsreader, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import { Nameplate } from "@/components/Nameplate";
 import { Footer } from "@/components/Footer";
+import { THEME_INIT_SCRIPT } from "@/components/ThemeToggle";
 import { dateLine, issueNumber } from "@/lib/issue";
 
 const spaceGrotesk = Space_Grotesk({
@@ -44,7 +45,11 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   const now = new Date();
 
   return (
-    <html lang="en" className={`${spaceGrotesk.variable} ${newsreader.variable}`}>
+    <html lang="en" className={`${spaceGrotesk.variable} ${newsreader.variable}`} suppressHydrationWarning>
+      {/* Theme before paint: the init script adds .light when appropriate, so
+          a stored light preference never flashes dark. suppressHydrationWarning
+          is required because the class may differ from what SSR emitted. */}
+      <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       <body className="relative min-h-full bg-bg text-ink">
         {/* Ambient atmosphere. Felt, not seen. */}
         <div aria-hidden className="pointer-events-none fixed inset-0 z-0 overflow-hidden">

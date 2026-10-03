@@ -69,8 +69,25 @@ async function check(path, { settle, requireText = [], forbidText = [], expect =
     for (const e of consoleErrors) fail(`console: ${e.slice(0, 200)}`);
     if (consoleErrors.length === 0) ok("no console errors");
 
-    const text = await page.evaluate(() => document.body.innerText);
-    const count = await page.evaluate((s) => document.querySelectorAll(s).length, EVENT_LINKS);
+    // The theme toggle: flipping it must re-skin the page without errors, and
+  // the choice must survive a reload (it is read pre-paint from localStorage).
+  const toggleSel = 'button[aria-label*="mode" i]';
+  await page.waitForSelector(toggleSel, { timeout: 15000 });
+  ok("theme toggle present");
+  await page.click(toggleSel);
+  await new Promise((r) => setTimeout(r, 600));
+  const light = await page.evaluate(() => document.documentElement.classList.contains("light"));
+  const stored = await page.evaluate(() => localStorage.getItem("devlore-theme"));
+  if (light && stored === "light") ok("light mode applies and persists");
+  else fail(`light mode broken (class=${light}, stored=${stored})`);
+  await page.click(toggleSel);
+  await new Promise((r) => setTimeout(r, 600));
+  const back = await page.evaluate(() => document.documentElement.classList.contains("light"));
+  if (!back) ok("dark mode restores");
+  else fail("dark mode did not restore");
+
+  const text = await page.evaluate(() => document.body.innerText);
+  const count = await page.evaluate((s) => document.querySelectorAll(s).length, EVENT_LINKS);
 
     for (const re of requireText) {
       if (re.test(text)) ok(`matches ${re}`);

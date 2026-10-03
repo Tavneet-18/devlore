@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { EventDTO } from "@/lib/events";
-import { EVENT_TYPES, EVENT_TYPE_LABELS } from "@/lib/constants";
+import { DISCOVER_RESET_EVENT, EVENT_TYPES, EVENT_TYPE_LABELS } from "@/lib/constants";
 import { IndexRow } from "./EventCard";
 import { TimeAxis } from "./TimeAxis";
 import { SkeletonCard } from "./SkeletonCard";
@@ -170,6 +170,18 @@ export function EventExplorer({
     setQ("");
     onCity("");
   };
+
+  // The nameplate's Discover link fires this when already on the front page.
+  // A same-URL navigation remounts nothing, so without this the button would
+  // visibly do nothing; instead it clears every filter and refetches.
+  useEffect(() => {
+    const onReset = () => reset();
+    window.addEventListener(DISCOVER_RESET_EVENT, onReset);
+    return () => window.removeEventListener(DISCOVER_RESET_EVENT, onReset);
+    // reset is stable-by-construction (setState calls only), and onCity comes
+    // from HomeClient's useState — re-subscribing on either is harmless.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onCity]);
 
   return (
     <section className="pb-24">

@@ -12,7 +12,12 @@
  * per event type used as a quiet signal rather than decoration.
  */
 
-@theme inline {
+@theme {
+  /* NOTE: plain @theme, not @theme inline. `inline` bakes the values into
+     every utility at build time, which makes runtime re-theming impossible —
+     html.light overrides of --color-* would apply to nothing. With plain
+     @theme, utilities reference var(--color-*) and the light palette below
+     takes effect. */
   --color-bg: #07070c;
   --color-surface: #0e0e16;
   --color-raised: #15151f;
@@ -87,6 +92,63 @@
 
 :root {
   color-scheme: dark;
+}
+
+/*
+ * Light theme. The whole site reads colours through the --color-* variables,
+ * so a light mode is a variable override on `html.light` — no component
+ * changes. Dark is the default: with no stored preference the page ships
+ * dark and the pre-paint script only adds `.light` when it should.
+ *
+ * Accent hues stay the same in both modes; only surfaces and text flip, so
+ * event-type colours remain recognisable and the violet stays interactive-only.
+ */
+html.light {
+  color-scheme: light;
+
+  --color-bg: #f6f5f1;
+  --color-surface: #ffffff;
+  --color-raised: #efede6;
+  --color-line: #e2ded2;
+  --color-line-hi: #cfc9b8;
+  --color-ink: #16151c;
+  --color-muted: #5d5c6e;
+  --color-faint: #9b99ab;
+
+  --color-primary: #6a58e8;
+  --color-primary-2: #2f7fd6;
+  --color-cyan: #0e7490;
+  --color-closing: #c2571d;
+  --color-calm: #15803d;
+
+  --color-t-hackathon: #7c3aed;
+  --color-t-meetup: #0f766e;
+  --color-t-workshop: #b45309;
+  --color-t-webinar: #e11d48;
+  --color-t-conference: #1d4ed8;
+  --color-t-career: #9333ea;
+
+  --color-positive: #15803d;
+  --color-caution: #b45309;
+  --color-critical: #dc2626;
+}
+
+html.light .text-gradient-soft {
+  background-image: linear-gradient(to right, #23222e, #55546a);
+}
+
+html.light .skeleton {
+  background: #e7e4d9;
+}
+
+html.light * {
+  scrollbar-color: #c9c4b4 transparent;
+}
+html.light ::-webkit-scrollbar-thumb {
+  background: #c9c4b4;
+}
+html.light ::-webkit-scrollbar-thumb:hover {
+  background: #a8a291;
 }
 
 html {
