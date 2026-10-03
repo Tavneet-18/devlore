@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { EventDTO } from "@/lib/events";
 import { DISCOVER_RESET_EVENT, EVENT_TYPES, EVENT_TYPE_LABELS } from "@/lib/constants";
 import { IndexRow } from "./EventCard";
+import { EventQuickLook } from "./EventQuickLook";
 import { TimeAxis } from "./TimeAxis";
 import { TimeAxisMobile } from "./TimeAxisMobile";
 import { SkeletonCard } from "./SkeletonCard";
@@ -49,6 +50,8 @@ export function EventExplorer({
   const [loading, setLoading] = useState(true);
   const [count, setCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  /** The event whose quick-look is open, or null. */
+  const [quickLook, setQuickLook] = useState<EventDTO | null>(null);
   /** Set once a request has been in flight long enough to be worth flagging. */
   const [slow, setSlow] = useState(false);
   /** Set when a request has taken so long that waiting further is pointless. */
@@ -340,7 +343,7 @@ export function EventExplorer({
           </p>
           <div className="mt-4">
             {happening.map((event, i) => (
-              <IndexRow key={event.id} event={event} index={i + 1} />
+              <IndexRow key={event.id} event={event} index={i + 1} onQuickLook={setQuickLook} />
             ))}
             <div className="border-t border-line" />
           </div>
@@ -355,12 +358,17 @@ export function EventExplorer({
           </h2>
           <div className="mt-4">
             {index.map((event, i) => (
-              <IndexRow key={event.id} event={event} index={i + 1} />
+              <IndexRow key={event.id} event={event} index={i + 1} onQuickLook={setQuickLook} />
             ))}
             <div className="border-t border-line" />
           </div>
         </section>
       )}
+
+      {/* Rendered once, outside the list, and driven by which event is set. One
+          <dialog> holding one event means opening a second quick-look never has
+          to re-create the element or move focus between two of them. */}
+      <EventQuickLook event={quickLook} onClose={() => setQuickLook(null)} />
     </section>
   );
 }

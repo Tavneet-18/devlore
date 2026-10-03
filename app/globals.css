@@ -299,6 +299,53 @@ body {
 }
 
 /*
+ * The quick-look sheet.
+ *
+ * A <dialog> opened with showModal() is centred by the UA stylesheet via
+ * `inset: 0; margin: auto`. On a phone that inset-margin trick is wrong for a
+ * bottom sheet, and overriding it per-viewport is cleaner in CSS than inline,
+ * because the two placements are media queries rather than variants.
+ *
+ * `margin: auto 0 0` leaves a single auto margin, which absorbs all remaining
+ * space and pins the sheet to the bottom edge. Above sm it becomes `auto` on
+ * all four sides and centres.
+ *
+ * The UA's `max-width: calc(100% - 2em - 6px)` is reset because it reserves a
+ * gutter the sheet does not want: at the bottom edge it should be flush.
+ */
+.quick-look {
+  position: fixed;
+  inset: 0;
+  margin: auto 0 0;
+  max-width: none;
+  max-height: 88svh;
+}
+
+@media (min-width: 640px) {
+  .quick-look {
+    margin: auto;
+    width: min(32rem, calc(100% - 3rem));
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .quick-look[open] {
+    animation: quick-look-in 180ms ease-out;
+  }
+}
+
+@keyframes quick-look-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/*
  * Type floor on small screens.
  *
  * The design sets a lot of text at 9px and 10px — date rail numerals, month

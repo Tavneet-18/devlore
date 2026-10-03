@@ -2,7 +2,7 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { toEventDTO } from "@/lib/events";
 import { getViewerId } from "@/lib/session";
-import { IndexRow } from "@/components/EventCard";
+import { SavedEventList } from "@/components/SavedEventList";
 
 export const dynamic = "force-dynamic";
 
@@ -44,10 +44,7 @@ export default async function BookmarksPage() {
         </div>
       ) : (
         <div className="mt-6">
-          {events.map((e, i) => (
-            <IndexRow key={e.id} event={e} index={i + 1} />
-          ))}
-          <div className="border-t border-line" />
+          <SavedEventList events={events} />
         </div>
       )}
     </div>

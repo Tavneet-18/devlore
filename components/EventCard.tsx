@@ -116,15 +116,44 @@ function skimmable(event: EventDTO): string | null {
   });
 }
 
-export function IndexRow({ event, index }: { event: EventDTO; index: number }) {
+export function IndexRow({
+  event,
+  index,
+  onQuickLook,
+}: {
+  event: EventDTO;
+  index: number;
+  onQuickLook?: (event: EventDTO) => void;
+}) {
   const accent = accentFor(event.eventType);
   const accentText = accentTextFor(event.eventType);
   const phase = eventPhase(event.date, event.endDate);
   const location = event.isOnline ? "Online" : (event.city ?? "TBA");
   const typeLabel = EVENT_TYPE_LABELS[event.eventType] ?? "Event";
 
+  /**
+   * The whole row is the click target for the quick-look, but a row also
+   * contains a real link and the bookmark button, and those must keep their own
+   * behaviour. Rather than nesting interactive elements — which is invalid and
+   * produces the worst focus order — the row is a plain div with a click
+   * handler that ignores anything that is itself a control.
+   *
+   * Keyboard users do not depend on this path at all: the title is a real
+   * <button>, which is what a screen reader or Tab reaches.
+   */
+  const onRowClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!onQuickLook) return;
+    if ((e.target as HTMLElement).closest("a, button, input, label")) return;
+    onQuickLook(event);
+  };
+
   return (
-    <div className="group grid grid-cols-[1.5rem_64px_minmax(0,1fr)_auto] items-center gap-4 border-t border-line py-5 transition-colors duration-200 hover:border-line-hi sm:grid-cols-[2.25rem_96px_minmax(0,1fr)_auto_auto] sm:gap-5 sm:py-6">
+    <div
+      onClick={onRowClick}
+      className={`group grid grid-cols-[1.5rem_64px_minmax(0,1fr)_auto] items-center gap-4 border-t border-line py-5 transition-colors duration-200 hover:border-line-hi sm:grid-cols-[2.25rem_96px_minmax(0,1fr)_auto_auto] sm:gap-5 sm:py-6${
+        onQuickLook ? " cursor-pointer" : ""
+      }`}
+    >
       <span className="font-mono text-[13px] text-faint">
         {String(index).padStart(2, "0")}
       </span>
@@ -142,11 +171,24 @@ export function IndexRow({ event, index }: { event: EventDTO; index: number }) {
             {typeLabel}
           </span>
         </div>
-        <Link href={`/events/${event.id}`} className="tap-target mt-1.5 block">
-          <h3 className="line-clamp-1 font-serif text-[23px] font-normal leading-tight tracking-[-0.005em] text-ink transition-colors group-hover:text-white">
-            {event.title}
-          </h3>
-        </Link>
+        {onQuickLook ? (
+          <button
+            type="button"
+            onClick={() => onQuickLook(event)}
+            aria-haspopup="dialog"
+            className="tap-target mt-1.5 block w-full text-left"
+          >
+            <h3 className="line-clamp-1 font-serif text-[23px] font-normal leading-tight tracking-[-0.005em] text-ink transition-colors group-hover:text-white">
+              {event.title}
+            </h3>
+          </button>
+        ) : (
+          <Link href={`/events/${event.id}`} className="tap-target mt-1.5 block">
+            <h3 className="line-clamp-1 font-serif text-[23px] font-normal leading-tight tracking-[-0.005em] text-ink transition-colors group-hover:text-white">
+              {event.title}
+            </h3>
+          </Link>
+        )}
         {event.summary && (
           <p className="mt-1 line-clamp-1 text-[14px] text-muted">{event.summary}</p>
         )}
