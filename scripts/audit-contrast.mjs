@@ -13,8 +13,13 @@
  * reports the worst ratios per mode.
  *
  * Usage: node scripts/audit-contrast.mjs [url ...]   (default: the four live routes)
+ *        set AUDIT_VIEWPORT=390x844 to audit a phone instead of the desktop
  * Exits non-zero if any visible text lands under 3:1, which is the floor for
  * large text and the point below which something is broken rather than quiet.
+ *
+ * The phone pass is not redundant. Contrast depends on what is painted, and the
+ * phone paints a different component: the mobile axis replaces the desktop band,
+ * so its own text-on-card pairings have never been through this audit.
  */
 
 import puppeteer from "puppeteer-core";
@@ -22,6 +27,12 @@ import puppeteer from "puppeteer-core";
 const ORIGIN = process.env.DEVLORE_ORIGIN ?? "https://devlore-kappa.vercel.app";
 const URLS = process.argv.length > 2 ? process.argv.slice(2) : [`${ORIGIN}/`, `${ORIGIN}/list`, `${ORIGIN}/bookmarks`];
 const CHROME = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";
+
+// Defaults to the desktop. A phone needs `isMobile`/`hasTouch` too, not just a
+// narrow viewport, or the `(pointer: coarse)` rules simply do not apply and the
+// audit measures a layout no reader will ever see.
+const [vw, vh] = (process.env.AUDIT_VIEWPORT ?? "1440x1200").split("x").map(Number);
+const MOBILE = vw < 768;
 
 const AUDIT = `
 (() => {
@@ -163,9 +174,11 @@ const browser = await puppeteer.launch({
 
 let hardFailures = 0;
 
+console.log(`viewport ${vw}x${vh}${MOBILE ? " (phone: pointer:coarse in force)" : ""}`);
+
 try {
   const page = await browser.newPage();
-  await page.setViewport({ width: 1440, height: 1200 });
+  await page.setViewport({ width: vw, height: vh, isMobile: MOBILE, hasTouch: MOBILE, deviceScaleFactor: 1 });
 
   for (const target of URLS) {
     await page.goto(target, { waitUntil: "networkidle2", timeout: 60000 });
