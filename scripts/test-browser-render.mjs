@@ -411,6 +411,146 @@ async function checkMobile() {
   }
 }
 
+/**
+ * The card quick-look.
+ *
+ * A modal is easy to build in a way that looks correct and is not: one that
+ * traps Tab but lets a click reach the nav behind it, or one that closes and
+ * drops focus on <body> so a keyboard user has to tab the length of the page to
+ * find where they were. Neither shows up in a screenshot, so both are asserted
+ * here against a real click.
+ *
+ * `handle.click()` rather than `el.click()` in page.evaluate: a synthetic click
+ * does not move focus, which makes focus-restoration untestable — an earlier
+ * version of this check reported focus returning to <body> purely because of
+ * that, and the real behaviour was correct all along.
+ *
+ * Placement is asserted too. The sheet is pinned to the bottom edge under 640px
+ * and centred above it, and that is the part most likely to break silently: a
+ * centred sheet still looks like a sheet.
+ */
+async function checkQuickLook() {
+  const CASES = [
+    ["desktop 1440x900", { width: 1440, height: 900, isMobile: false, hasTouch: false }, "centred"],
+    ["phone 390x844", { width: 390, height: 844, isMobile: true, hasTouch: true }, "sheet"],
+  ];
+
+  for (const [label, viewport, placement] of CASES) {
+    console.log(`\nquick-look @ ${label}`);
+    const page = await browser.newPage();
+    await page.emulate({
+      viewport: { ...viewport, deviceScaleFactor: viewport.isMobile ? 2 : 1 },
+      userAgent: viewport.isMobile
+        ? "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
+        : undefined,
+    });
+
+    try {
+      await page.goto(`${origin}/`, { waitUntil: "networkidle2", timeout: 60000 });
+      await page.waitForSelector("button[aria-haspopup='dialog']", { timeout: 30000 });
+      await new Promise((r) => setTimeout(r, 800));
+
+      const trigger = await page.$("button[aria-haspopup='dialog']");
+      const triggerTitle = await trigger.evaluate((el) => el.textContent.trim().slice(0, 40));
+      await trigger.click();
+      await new Promise((r) => setTimeout(r, 400));
+
+      const open = await page.evaluate(() => {
+        const d = document.querySelector("dialog[open]");
+        if (!d) return { found: false };
+        const b = d.getBoundingClientRect();
+        const rows = [...d.querySelectorAll("dl > div")].map((r) => ({
+          label: (r.querySelector("dt")?.textContent ?? "").trim(),
+          value: (r.querySelector("dd")?.textContent ?? "").trim(),
+        }));
+        return {
+          found: true,
+          // :modal is the assertion that matters. `open` alone is true for a
+          // non-modal dialog, which traps nothing and inerts nothing.
+          modal: d.matches(":modal"),
+          rect: { top: Math.round(b.top), bottom: Math.round(b.bottom), w: Math.round(b.width) },
+          vh: window.innerHeight,
+          vw: window.innerWidth,
+          rows,
+          hasFullLink: !!d.querySelector('a[href^="/events/"]'),
+          overflowX: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+        };
+      });
+
+      if (open.found) ok("opens");
+      else fail("did not open on click");
+
+      if (open.modal) ok("is a true modal dialog (:modal)");
+      else fail("opened without :modal — background is not inert");
+
+      if (placement === "sheet") {
+        // Pinned to the bottom edge, and full-bleed across the width.
+        if (Math.abs(open.rect.bottom - open.vh) <= 2 && open.rect.w >= open.vw - 2)
+          ok(`bottom sheet: flush to the bottom edge, ${open.rect.w}px of ${open.vw}px wide`);
+        else fail(`sheet placement wrong: bottom ${open.rect.bottom} of ${open.vh}, width ${open.rect.w} of ${open.vw}`);
+      } else {
+        const gapAbove = open.rect.top;
+        const gapBelow = open.vh - open.rect.bottom;
+        // Centred within a couple of pixels. Both gaps must be positive too:
+        // a dialog pushed off the top of the screen has no positive top gap and
+        // would otherwise pass a naive absolute-difference check.
+        if (gapAbove > 0 && gapBelow > 0 && Math.abs(gapAbove - gapBelow) <= 3)
+          ok(`centred panel: ${gapAbove}px above, ${gapBelow}px below`);
+        else fail(`not centred: ${gapAbove}px above, ${gapBelow}px below (viewport ${open.vh})`);
+      }
+
+      if (open.rows.length > 0) ok(`${open.rows.length} fact rows: ${open.rows.map((r) => r.label).join(", ")}`);
+      else fail("no fact rows rendered");
+
+      // A placeholder here would mean a field the source never published is
+      // being shown as something other than absent.
+      const placeholders = open.rows.filter((r) => /^(—|-|tba|tbd|n\/?a|null|undefined|-+)$/i.test(r.value));
+      if (placeholders.length === 0) ok("no placeholder values in the fact rows");
+      else fail(`${placeholders.length} fact row(s) show a placeholder: ${placeholders.map((p) => `${p.label}="${p.value}"`).join(", ")}`);
+
+      if (open.hasFullLink) ok("full-details link present");
+      else fail("no link through to the full page");
+
+      if (open.overflowX <= 0) ok("no horizontal overflow while open");
+      else fail(`page overflows by ${open.overflowX}px while the dialog is open`);
+
+      // The background must be inert to a click, not merely to Tab.
+      const before = page.url();
+      const nav = await page.$("header nav a");
+      if (nav) {
+        const box = await nav.boundingBox();
+        await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+        await new Promise((r) => setTimeout(r, 500));
+        if (page.url() === before) ok("background nav is inert to clicks");
+        else fail(`a click reached the page behind the dialog (navigated to ${page.url()})`);
+        // Re-open; the previous click closed it via the backdrop.
+        await page.waitForSelector("button[aria-haspopup='dialog']", { timeout: 10000 });
+        await (await page.$("button[aria-haspopup='dialog']")).click();
+        await new Promise((r) => setTimeout(r, 400));
+      }
+
+      // Escape closes, and focus lands back on the row that opened it.
+      await page.keyboard.press("Escape");
+      await new Promise((r) => setTimeout(r, 400));
+      const after = await page.evaluate(() => ({
+        closed: !document.querySelector("dialog")?.open,
+        focusIsTrigger: document.activeElement?.getAttribute("aria-haspopup") === "dialog",
+        focusLabel: (document.activeElement?.textContent ?? "").trim().slice(0, 40),
+        focusTag: document.activeElement?.tagName,
+      }));
+      if (after.closed) ok("Escape closes it");
+      else fail("Escape did not close it");
+      if (after.focusIsTrigger)
+        ok(`focus returned to the triggering row ("${after.focusLabel}")`);
+      else fail(`focus after close is ${after.focusTag}, not the trigger that opened it`);
+
+      console.log(`  (opened "${triggerTitle}")`);
+    } finally {
+      await page.close();
+    }
+  }
+}
+
 try {
   // The front page. The axis and the index are both client-rendered here.
   const home = await check("/", {
@@ -423,6 +563,8 @@ try {
   await checkAxisGeometry();
 
   await checkMobile();
+
+  await checkQuickLook();
 
   // /list is the submit form, not an index — it carries the editable fields.
   await check("/list", {

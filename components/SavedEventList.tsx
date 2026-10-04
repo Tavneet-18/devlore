@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { IndexRow } from "./EventCard";
+import { IndexRow } from "./IndexRow";
 import { EventQuickLook } from "./EventQuickLook";
 import type { EventDTO } from "@/lib/events";
 

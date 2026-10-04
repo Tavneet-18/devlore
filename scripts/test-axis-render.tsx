@@ -15,7 +15,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import type { EventDTO } from "../lib/events";
 import { TimeAxis } from "../components/TimeAxis";
 import { TimeAxisMobile } from "../components/TimeAxisMobile";
-import { IndexRow } from "../components/EventCard";
+import { IndexRow } from "../components/IndexRow";
 
 const API = process.env.EVENTS_API ?? "https://devlore-kappa.vercel.app/api/events";
 

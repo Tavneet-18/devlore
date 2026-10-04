@@ -23,7 +23,8 @@ import {
 } from "@/lib/event-summary";
 import { buildIcs, googleCalendarUrl } from "@/lib/calendar";
 import { BookmarkButton } from "@/components/BookmarkButton";
-import { IndexRow, EventPoster, accentFor, accentTextFor } from "@/components/EventCard";
+import { IndexRow } from "@/components/IndexRow";
+import { EventPoster, accentFor, accentTextFor } from "@/components/EventCard";
 import { getViewerId } from "@/lib/session";
 
 export const dynamic = "force-dynamic";

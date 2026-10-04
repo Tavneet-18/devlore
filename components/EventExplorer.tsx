@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { EventDTO } from "@/lib/events";
 import { DISCOVER_RESET_EVENT, EVENT_TYPES, EVENT_TYPE_LABELS } from "@/lib/constants";
-import { IndexRow } from "./EventCard";
+import { IndexRow } from "./IndexRow";
 import { EventQuickLook } from "./EventQuickLook";
 import { TimeAxis } from "./TimeAxis";
 import { TimeAxisMobile } from "./TimeAxisMobile";

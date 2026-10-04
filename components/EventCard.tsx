@@ -116,119 +116,14 @@ function skimmable(event: EventDTO): string | null {
   });
 }
 
-export function IndexRow({
-  event,
-  index,
-  onQuickLook,
-}: {
-  event: EventDTO;
-  index: number;
-  onQuickLook?: (event: EventDTO) => void;
-}) {
-  const accent = accentFor(event.eventType);
-  const accentText = accentTextFor(event.eventType);
-  const phase = eventPhase(event.date, event.endDate);
-  const location = event.isOnline ? "Online" : (event.city ?? "TBA");
-  const typeLabel = EVENT_TYPE_LABELS[event.eventType] ?? "Event";
-
-  /**
-   * The whole row is the click target for the quick-look, but a row also
-   * contains a real link and the bookmark button, and those must keep their own
-   * behaviour. Rather than nesting interactive elements — which is invalid and
-   * produces the worst focus order — the row is a plain div with a click
-   * handler that ignores anything that is itself a control.
-   *
-   * Keyboard users do not depend on this path at all: the title is a real
-   * <button>, which is what a screen reader or Tab reaches.
-   */
-  const onRowClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!onQuickLook) return;
-    if ((e.target as HTMLElement).closest("a, button, input, label")) return;
-    onQuickLook(event);
-  };
-
-  return (
-    <div
-      onClick={onRowClick}
-      className={`group grid grid-cols-[1.5rem_64px_minmax(0,1fr)_auto] items-center gap-4 border-t border-line py-5 transition-colors duration-200 hover:border-line-hi sm:grid-cols-[2.25rem_96px_minmax(0,1fr)_auto_auto] sm:gap-5 sm:py-6${
-        onQuickLook ? " cursor-pointer" : ""
-      }`}
-    >
-      <span className="font-mono text-[13px] text-faint">
-        {String(index).padStart(2, "0")}
-      </span>
-
-      <Poster
-        event={event}
-        radius="rounded-[2px]"
-        className="h-16 w-16 transition-transform duration-300 group-hover:scale-[1.04] sm:h-24 sm:w-24"
-      />
-
-      <div className="min-w-0">
-        <div className="flex items-center gap-2">
-          <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${accent}`} aria-hidden />
-          <span className={`text-[10px] font-semibold uppercase tracking-[0.16em] ${accentText}`}>
-            {typeLabel}
-          </span>
-        </div>
-        {onQuickLook ? (
-          <button
-            type="button"
-            onClick={() => onQuickLook(event)}
-            aria-haspopup="dialog"
-            className="tap-target mt-1.5 block w-full text-left"
-          >
-            <h3 className="line-clamp-1 font-serif text-[23px] font-normal leading-tight tracking-[-0.005em] text-ink transition-colors group-hover:text-white">
-              {event.title}
-            </h3>
-          </button>
-        ) : (
-          <Link href={`/events/${event.id}`} className="tap-target mt-1.5 block">
-            <h3 className="line-clamp-1 font-serif text-[23px] font-normal leading-tight tracking-[-0.005em] text-ink transition-colors group-hover:text-white">
-              {event.title}
-            </h3>
-          </Link>
-        )}
-        {event.summary && (
-          <p className="mt-1 line-clamp-1 text-[14px] text-muted">{event.summary}</p>
-        )}
-        {/* The skim line. Prefers the generated brief and otherwise states the
-            structured facts, so a reader can tell team size, fee and mode
-            without opening the page. Null when neither exists, and the row
-            simply shows nothing rather than a placeholder. */}
-        {skimmable(event) && (
-          <p className="mt-1 line-clamp-1 text-[13px] text-faint">{skimmable(event)}</p>
-        )}
-        {/* Mobile-only: the right-hand metadata column is hidden below sm, so
-            the facts and the deadline have to appear here or they are simply
-            unavailable on a phone. */}
-        <p className="mt-2 text-[12px] text-faint sm:hidden">
-          {location} · {formatDateRange(event.date, event.endDate)}
-        </p>
-        <p className={`mt-0.5 text-[12px] sm:hidden ${phase === "ended" ? "text-faint" : "text-closing"}`}>
-          {eventTiming(event.date, event.endDate)}
-        </p>
-      </div>
-
-      <div className="hidden shrink-0 text-right sm:block">
-        <p className="text-[13px] text-muted">{location}</p>
-        <p className="text-[13px] text-faint">{formatDateRange(event.date, event.endDate)}</p>
-        <p className={`mt-1 text-[12px] ${phase === "ended" ? "text-faint" : "text-closing"}`}>
-          {eventTiming(event.date, event.endDate)}
-        </p>
-        <Link
-          href={`/events/${event.id}`}
-          className="tap-target mt-2 inline-block text-[13px] font-semibold text-primary transition-colors hover:text-[#9b8fff]"
-        >
-          View →
-        </Link>
-      </div>
-
-      {/* Saving has to be reachable from the browse page, not only from the
-          detail page — otherwise it costs an extra click per event. It sits in
-          its own column rather than inside the metadata column so it stays
-          reachable on mobile too, and gives the saved page a way to unsave. */}
-      <BookmarkButton eventId={event.id} initialBookmarked={event.bookmarked ?? false} />
-    </div>
-  );
-}
+/**
+ * The interactive row lives in components/IndexRow.tsx, not here.
+ *
+ * That separation is load-bearing rather than tidy. This module has no "use
+ * client", so the server-rendered detail page can import the poster from it.
+ * When IndexRow carried its click handlers in here, that page could no longer
+ * render — a server component cannot render a component holding event handlers,
+ * and every /events/[id] request returned 500. Keeping the presentational parts
+ * here and the interactive row in its own "use client" module is what lets both
+ * coexist.
+ */
