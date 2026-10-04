@@ -11,20 +11,20 @@ const SCHEMAS = {
   "base (pre-001)": [
     "id", "title", "summary", "description", "date", "endDate", "city", "country",
     "isOnline", "eventType", "organizer", "link", "imageUrl", "tags",
-    "beginnerFriendly", "source", "status", "viewCount", "createdAt",
+    "beginnerFriendly", "source", "status", "createdAt",
     "updatedAt", "externalId", "hash", "fetchedAt", "rawPayload", "expiresAt",
   ],
   "after 001": [
     "id", "title", "summary", "description", "date", "endDate", "city", "country",
     "isOnline", "eventType", "organizer", "link", "imageUrl", "tags",
-    "beginnerFriendly", "source", "status", "viewCount", "createdAt",
+    "beginnerFriendly", "source", "status", "createdAt",
     "updatedAt", "externalId", "hash", "fetchedAt", "rawPayload", "expiresAt",
     "sourceId", "deadlineKind",
   ],
   "after 004": [
     "id", "title", "summary", "description", "date", "endDate", "city", "country",
     "isOnline", "eventType", "organizer", "link", "imageUrl", "tags",
-    "beginnerFriendly", "source", "status", "viewCount", "createdAt",
+    "beginnerFriendly", "source", "status", "createdAt",
     "updatedAt", "externalId", "hash", "fetchedAt", "rawPayload", "expiresAt",
     "sourceId", "deadlineKind",
     "details", "brief", "whoCanJoin", "briefedAt",
@@ -48,7 +48,7 @@ function eventSelect(caps: { sourceIdentity: boolean; eventDetails: boolean }) {
     date: true, endDate: true, city: true, country: true,
     isOnline: true, eventType: true, organizer: true, link: true,
     imageUrl: true, tags: true, beginnerFriendly: true, source: true,
-    status: true, viewCount: true, createdAt: true, fetchedAt: true,
+    status: true, createdAt: true, fetchedAt: true,
   };
   const withIdentity = { ...base, sourceId: true, deadlineKind: true };
   if (caps.eventDetails) return { ...withIdentity, brief: true, whoCanJoin: true, details: true };

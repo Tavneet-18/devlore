@@ -104,65 +104,9 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
     similarEvents(event, asSelected(allApproved), 3)
   ).map((e) => toEventDTO(e));
 
-  /**
-   * Record the view, once per browser per event.
-   *
-   * This page has always *displayed* viewCount while never recording one — the
-   * only insert in the codebase was on the JSON API, which no reader calls. So
-   * the figure on every event page was a permanent 0 presented as a statistic.
-   *
-   * `skipDuplicates` does two jobs. It stops a refresh from inflating the count,
-   * and it makes the increment atomic: an insert that loses the race inserts
-   * nothing, so viewCount cannot drift away from the View rows. That matters
-   * beyond tidiness because viewCount is a tiebreaker in
-   * lib/recommendations.ts, so drift there would quietly change which events
-   * get suggested.
-   *
-   * The row above was read before the increment, so the page would otherwise
-   * show the pre-increment number — a first-time visitor would see "0 views" on
-   * the page their own view had just made 1. `viewJustCounted` corrects that
-   * without paying for a second read.
-   *
-   * KNOWN LIMIT, and the reason this still reads 0 for most visitors: a view is
-   * only recorded for someone who already has a `devlore_visitor` cookie, and
-   * only the bookmark route handlers set that cookie. Someone who reads an
-   * event page without ever saving anything has no viewer id, so there is
-   * nothing to deduplicate against and no view is counted. Measured: a plain
-   * visit shows 0 and leaves no cookie; seeding the cookie by hand makes the
-   * first visit count and every later one not.
-   *
-   * Counting every read needs an identifier for anonymous visitors, which means
-   * deciding to identify them — a cookie on every reader rather than only on
-   * people who bookmark. That is a privacy decision, not a bug fix, so it is
-   * not made here. The two honest options are to add middleware that sets the
-   * cookie for everyone, or to drop the counter.
-   *
-   * Failures are swallowed deliberately. A view is not worth failing a page
-   * render over, and the pre-migration schema may not have this table at all.
-   */
-  let viewJustCounted = false;
-  if (viewerId) {
-    try {
-      const { count } = await db.view.createMany({
-        data: [{ eventId: id, viewerId }],
-        skipDuplicates: true,
-      });
-      if (count > 0) {
-        await db.event.update({ where: { id }, data: { viewCount: { increment: 1 } } });
-        viewJustCounted = true;
-      }
-    } catch {
-      // Unrecorded view, page still renders.
-    }
-  }
-
-  const counted = viewJustCounted
-    ? { ...event, viewCount: event.viewCount + 1 }
-    : event;
-
   const details = parseDetails(event.details);
   const whoCanJoin = event.whoCanJoin ?? whoCanJoinFrom(details);
-  const dto = toEventDTO(counted, new Set(bookmark ? [id] : []), refs);
+  const dto = toEventDTO(event, new Set(bookmark ? [id] : []), refs);
 
   const timing = eventTiming(dto.date, dto.endDate);
   const target = dto.endDate ?? dto.date;
@@ -259,9 +203,15 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
             {dto.title}
           </h1>
 
+          {/* Location and organiser only. A view count used to sit here, and it had been
+            a permanent 0 on every event since launch — only the bookmark route
+            handlers ever set the viewer cookie, so a reader who never saved
+            anything was never attributable. Counting anonymous reads would mean
+            putting an identifier on every visitor, so the counter was dropped
+            instead (20261004010000_drop_view_counter) rather than left reading
+            zero or dressed up as social proof. */}
           <p className="mt-4 text-[13px] text-faint">
-            {location} · {dto.organizer} ·{" "}
-            {dto.viewCount.toLocaleString()} {dto.viewCount === 1 ? "view" : "views"}
+            {location} · {dto.organizer}
           </p>
 
           {dto.imageUrl && (

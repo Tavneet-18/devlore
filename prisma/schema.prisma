@@ -26,7 +26,6 @@ model Event {
   beginnerFriendly Boolean @default(false)
   source     String    @default("manual")
   status     String    @default("APPROVED")
-  viewCount  Int       @default(0)
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
   // Ingest dedupe fields
@@ -52,7 +51,6 @@ model Event {
   deadlineKind String?
 
   bookmarks Bookmark[]
-  views     View[]
   sourceRefs EventSourceRef[]
 
   @@index([status])
@@ -140,19 +138,11 @@ model Bookmark {
   @@index([viewerId])
 }
 
-model View {
-  id        String   @id @default(cuid())
-  eventId   String
-  viewerId  String
-  createdAt DateTime @default(now())
-
-  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
-
-  // One row per browser per event, so viewCount means "distinct browsers that
-  // opened this page" and a refresh cannot inflate it. viewCount is also a
-  // tiebreaker in lib/recommendations.ts, so inflation there would quietly
-  // change which events get suggested.
-  @@unique([viewerId, eventId])
-  @@index([viewerId])
-  @@index([eventId])
-}
+// The view counter and this table were dropped in
+// 20261004010000_drop_view_counter.
+//
+// A view was only attributable to a browser holding a `devlore_visitor` cookie,
+// and only the bookmark route handlers set one, so a reader who never saved
+// anything was never counted and the figure on every event page was a permanent
+// 0. Counting every read would mean putting an identifier on every anonymous
+// visitor, which is a privacy decision rather than a bug fix.

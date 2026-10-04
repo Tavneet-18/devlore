@@ -20,20 +20,6 @@ export async function GET(
   const event = await db.event.findUnique({ where: { id }, select: await eventSelect() });
   if (!event) return NextResponse.json({ error: "Event not found" }, { status: 404 });
 
-  if (viewerId) {
-    // Deduplicated, matching the detail page: one row per browser per event.
-    // A bare create would now hit the unique constraint on the second call from
-    // the same browser and throw, turning a repeat API read into a 500.
-    await db.view
-      .createMany({ data: [{ eventId: id, viewerId }], skipDuplicates: true })
-      .then(({ count }) =>
-        count > 0
-          ? db.event.update({ where: { id }, data: { viewCount: { increment: 1 } } })
-          : null
-      )
-      .catch(() => null);
-  }
-
   const [bookmark, refs] = await Promise.all([
     viewerId
       ? db.bookmark.findUnique({ where: { viewerId_eventId: { viewerId, eventId: id } } })

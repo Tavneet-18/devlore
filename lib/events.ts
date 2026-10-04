@@ -52,7 +52,6 @@ export interface EventDTO {
   /** When we last pulled this listing, for the "last checked" line. */
   fetchedAt: string;
   status: string;
-  viewCount: number;
   createdAt: string;
   bookmarked?: boolean;
 }
@@ -84,8 +83,8 @@ export function toEventDTO(
     brief: event.brief ?? null,
     whoCanJoin: event.whoCanJoin ?? null,
     details: parseDetails(event.details),
-    fetchedAt: event.fetchedAt.toISOString(),    status: event.status,
-    viewCount: event.viewCount,
+    fetchedAt: event.fetchedAt.toISOString(),
+    status: event.status,
     createdAt: event.createdAt.toISOString(),
     bookmarked: bookmarkedIds ? bookmarkedIds.has(event.id) : undefined,
   };
@@ -160,7 +159,7 @@ const EVENT_BASE_SELECT = {
   isOnline: true, eventType: true, organizer: true, link: true,
   imageUrl: true, tags: true, beginnerFriendly: true,
   source: true,
-  status: true, viewCount: true, createdAt: true, fetchedAt: true,
+  status: true, createdAt: true, fetchedAt: true,
 } as const;
 
 /** Adds migration 001's columns. */

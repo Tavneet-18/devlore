@@ -1,5 +1,4 @@
 import type { Event } from "@prisma/client";
-import { db } from "./db";
 import { parseTags } from "./events";
 
 /**
@@ -9,7 +8,7 @@ import { parseTags } from "./events";
  * row and one from `eventSelect()`, which omits the migration-004 columns until
  * they exist. Scoring has no business reading a brief.
  */
-type Scored = Pick<Event, "id" | "status" | "tags" | "eventType" | "beginnerFriendly" | "isOnline" | "city" | "viewCount">;
+type Scored = Pick<Event, "id" | "status" | "tags" | "eventType" | "beginnerFriendly" | "isOnline" | "city" | "date">;
 
 function scoreSimilarity(a: Scored, b: Scored): number {
   let score = 0;
@@ -29,69 +28,27 @@ export function similarEvents(event: Scored, all: Scored[], limit = 3): Scored[]
     .filter((e) => e.id !== event.id && e.status === "APPROVED")
     .map((e) => ({ e, s: scoreSimilarity(event, e) }))
     .filter((x) => x.s > 0)
-    .sort((x, y) => y.s - x.s || y.e.viewCount - x.e.viewCount)
+    // Tiebreak on the soonest event, not on viewCount. The counter was dropped
+    // in 20261004010000_drop_view_counter; while it existed it was always 0, so
+    // it never broke a tie in practice and only added a field to carry. Among
+    // equally similar events, the one happening first is the more useful
+    // suggestion anyway.
+    .sort((x, y) => y.s - x.s || x.e.date.getTime() - y.e.date.getTime())
     .slice(0, limit)
     .map((x) => x.e);
 }
 
-/**
- * Personalized recommendations for an anonymous visitor based on their
- * past views and bookmarks. Tags they engaged with get weighted and used
- * to rank upcoming approved events.
+/*
+ * recommendForViewer() was removed here.
+ *
+ * It personalised from a visitor's past views and bookmarks, weighting tags by
+ * how often they had engaged with them. It had no callers, and the only part of
+ * it that could not be reimplemented trivially — reading `db.view` — went away
+ * with the counter. The bookmark half was always reachable from lib/dedupe.ts
+ * and the index filters, which is where a reader actually narrows a list.
+ *
+ * Rather than leave it as dead code that reads a table this schema no longer
+ * has, it is deleted. If personalised recommendations are ever wanted, the
+ * honest version starts from bookmarks, which do have a viewer id for anyone who
+ * saved something.
  */
-export async function recommendForViewer(
-  viewerId: string | null,
-  all: Event[],
-  limit = 6
-): Promise<Event[]> {
-  if (!viewerId) return [];
-
-  const [views, bookmarks] = await Promise.all([
-    db.view.findMany({ where: { viewerId }, orderBy: { createdAt: "desc" }, take: 50 }),
-    db.bookmark.findMany({ where: { viewerId }, orderBy: { createdAt: "desc" }, take: 50 }),
-  ]);
-
-  const engagedIds = new Set([...views.map((v) => v.eventId), ...bookmarks.map((b) => b.eventId)]);
-  if (engagedIds.size === 0) return [];
-
-  const byId = new Map(all.map((e) => [e.id, e]));
-  const weights = new Map<string, number>();
-
-  for (const v of views) {
-    const e = byId.get(v.eventId);
-    if (!e) continue;
-    for (const t of parseTags(e)) weights.set(t, (weights.get(t) ?? 0) + 10);
-    if (e.eventType) weights.set(`type:${e.eventType}`, (weights.get(`type:${e.eventType}`) ?? 0) + 5);
-    if (e.city) weights.set(`city:${e.city}`, (weights.get(`city:${e.city}`) ?? 0) + 3);
-  }
-  for (const b of bookmarks) {
-    const e = byId.get(b.eventId);
-    if (!e) continue;
-    for (const t of parseTags(e)) weights.set(t, (weights.get(t) ?? 0) + 20);
-    if (e.eventType) weights.set(`type:${e.eventType}`, (weights.get(`type:${e.eventType}`) ?? 0) + 10);
-    if (e.city) weights.set(`city:${e.city}`, (weights.get(`city:${e.city}`) ?? 0) + 6);
-  }
-
-  const now = new Date();
-
-  const scored = all
-    .filter(
-      (e) =>
-        e.status === "APPROVED" &&
-        !engagedIds.has(e.id) &&
-        // Still upcoming if either endpoint is in the future — hackathons
-        // often start earlier while registration stays open.
-        (e.date >= now || (e.endDate !== null && e.endDate >= now))
-    )
-    .map((e) => {
-      let score = 0;
-      for (const t of parseTags(e)) score += weights.get(t) ?? 0;
-      score += weights.get(`type:${e.eventType}`) ?? 0;
-      if (e.city) score += weights.get(`city:${e.city}`) ?? 0;
-      return { e, score };
-    })
-    .filter((x) => x.score > 0)
-    .sort((a, b) => b.score - a.score || a.e.date.getTime() - b.e.date.getTime());
-
-  return scored.slice(0, limit).map((x) => x.e);
-}

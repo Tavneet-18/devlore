@@ -36,7 +36,6 @@ const legacyRow = {
   sourceId: "legacy1",
   deadlineKind: "registration",
   status: "APPROVED",
-  viewCount: 12,
   createdAt: now,
   fetchedAt: now,
 };

@@ -1,8 +1,3 @@
-import Link from "next/link";
-import { eventPhase, eventTiming, formatDateRange } from "@/lib/format";
-import { EVENT_TYPE_LABELS } from "@/lib/constants";
-import { BookmarkButton } from "./BookmarkButton";
-import { eventOneLiner } from "@/lib/event-summary";
 import type { EventDTO } from "@/lib/events";
 
 const TYPE_ACCENT: Record<string, string> = {
@@ -94,29 +89,6 @@ export function EventPoster({
 /* -------------------------------------------------------------------------- */
 
 /**
- * The one line that lets a reader decide without opening the event.
- *
- * The brief is preferred because it is written prose. It is null for every
- * currently-ingested event — no source publishes description text — so the
- * fallback is the assembled fact line, which is real in every case. Returns
- * null rather than an empty string so the caller can omit the element entirely
- * instead of leaving a gap.
- */
-function skimmable(event: EventDTO): string | null {
-  if (event.brief) return event.brief;
-  return eventOneLiner({
-    title: event.title,
-    date: event.date,
-    endDate: event.endDate,
-    deadlineKind: event.deadlineKind,
-    isOnline: event.isOnline,
-    city: event.city,
-    details: event.details,
-    whoCanJoin: event.whoCanJoin,
-  });
-}
-
-/**
  * The interactive row lives in components/IndexRow.tsx, not here.
  *
  * That separation is load-bearing rather than tidy. This module has no "use
@@ -126,4 +98,8 @@ function skimmable(event: EventDTO): string | null {
  * and every /events/[id] request returned 500. Keeping the presentational parts
  * here and the interactive row in its own "use client" module is what lets both
  * coexist.
+ *
+ * So this file is now purely presentational: the two poster variants and the
+ * type accent maps, which the axis, the quick-look and the detail page all read
+ * and none of which need interactivity.
  */

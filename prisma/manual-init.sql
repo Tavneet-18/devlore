@@ -37,7 +37,6 @@ CREATE TABLE IF NOT EXISTS "Event" (
     "beginnerFriendly"  BOOLEAN NOT NULL DEFAULT false,
     "source"            TEXT NOT NULL DEFAULT 'manual',
     "status"            TEXT NOT NULL DEFAULT 'APPROVED',
-    "viewCount"         INTEGER NOT NULL DEFAULT 0,
     "createdAt"         TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt"         TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     -- Ingest / dedupe columns
@@ -59,14 +58,10 @@ CREATE TABLE IF NOT EXISTS "Bookmark" (
     CONSTRAINT "Bookmark_pkey" PRIMARY KEY ("id")
 );
 
-CREATE TABLE IF NOT EXISTS "View" (
-    "id"        TEXT NOT NULL,
-    "eventId"   TEXT NOT NULL,
-    "viewerId"  TEXT NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "View_pkey" PRIMARY KEY ("id")
-);
+-- No "View" table: the view counter was dropped in
+-- 20261004010000_drop_view_counter. A view was only attributable to a browser
+-- holding devlore_visitor, and only the bookmark handlers set one, so the count
+-- on every event page had been a permanent 0 since launch.
 
 -- ---------------------------------------------------------------------------
 -- Indexes
@@ -84,15 +79,9 @@ CREATE INDEX IF NOT EXISTS "Event_source_fetchedAt_idx" ON "Event"("source", "fe
 CREATE UNIQUE INDEX IF NOT EXISTS "Bookmark_viewerId_eventId_key" ON "Bookmark"("viewerId", "eventId");
 CREATE INDEX IF NOT EXISTS "Bookmark_viewerId_idx" ON "Bookmark"("viewerId");
 
-CREATE INDEX IF NOT EXISTS "View_viewerId_idx" ON "View"("viewerId");
-CREATE INDEX IF NOT EXISTS "View_eventId_idx"  ON "View"("eventId");
-
 -- ---------------------------------------------------------------------------
 -- Foreign keys
 -- ---------------------------------------------------------------------------
 
 ALTER TABLE "Bookmark" ADD CONSTRAINT "Bookmark_eventId_fkey"
-    FOREIGN KEY ("eventId") REFERENCES "Event"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
-ALTER TABLE "View" ADD CONSTRAINT "View_eventId_fkey"
     FOREIGN KEY ("eventId") REFERENCES "Event"("id") ON DELETE CASCADE ON UPDATE CASCADE;

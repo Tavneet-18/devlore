@@ -118,7 +118,7 @@ async function detailedReport() {
     const base = [
       "id", "title", "summary", "description", "date", "endDate", "city", "country",
       "isOnline", "eventType", "organizer", "link", "imageUrl", "tags",
-      "beginnerFriendly", "source", "status", "viewCount", "createdAt",
+      "beginnerFriendly", "source", "status", "createdAt",
       "updatedAt", "externalId", "hash", "fetchedAt", "rawPayload", "expiresAt",
     ];
     const missing = base.filter((c) => !present.has(c));
