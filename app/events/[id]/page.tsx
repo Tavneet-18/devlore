@@ -104,9 +104,51 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
     similarEvents(event, asSelected(allApproved), 3)
   ).map((e) => toEventDTO(e));
 
+  /**
+   * Record the view, once per browser per event.
+   *
+   * This page has always *displayed* viewCount while never recording one — the
+   * only insert in the codebase was on the JSON API, which no reader calls. So
+   * the figure on every event page was a permanent 0 presented as a statistic.
+   *
+   * `skipDuplicates` does two jobs. It stops a refresh from inflating the count,
+   * and it makes the increment atomic: an insert that loses the race inserts
+   * nothing, so viewCount cannot drift away from the View rows. That matters
+   * beyond tidiness because viewCount is a tiebreaker in
+   * lib/recommendations.ts, so drift there would quietly change which events
+   * get suggested.
+   *
+   * The row above was read before the increment, so the page would otherwise
+   * show the pre-increment number — a first-time visitor would see "0 views" on
+   * the page their own view had just made 1. `viewJustCounted` corrects that
+   * without paying for a second read.
+   *
+   * Failures are swallowed deliberately. A view is not worth failing a page
+   * render over, and the pre-migration schema may not have this table at all.
+   */
+  let viewJustCounted = false;
+  if (viewerId) {
+    try {
+      const { count } = await db.view.createMany({
+        data: [{ eventId: id, viewerId }],
+        skipDuplicates: true,
+      });
+      if (count > 0) {
+        await db.event.update({ where: { id }, data: { viewCount: { increment: 1 } } });
+        viewJustCounted = true;
+      }
+    } catch {
+      // Unrecorded view, page still renders.
+    }
+  }
+
+  const counted = viewJustCounted
+    ? { ...event, viewCount: event.viewCount + 1 }
+    : event;
+
   const details = parseDetails(event.details);
   const whoCanJoin = event.whoCanJoin ?? whoCanJoinFrom(details);
-  const dto = toEventDTO(event, new Set(bookmark ? [id] : []), refs);
+  const dto = toEventDTO(counted, new Set(bookmark ? [id] : []), refs);
 
   const timing = eventTiming(dto.date, dto.endDate);
   const target = dto.endDate ?? dto.date;

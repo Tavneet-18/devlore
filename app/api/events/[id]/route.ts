@@ -21,8 +21,17 @@ export async function GET(
   if (!event) return NextResponse.json({ error: "Event not found" }, { status: 404 });
 
   if (viewerId) {
-    await db.view.create({ data: { eventId: id, viewerId } });
-    await db.event.update({ where: { id }, data: { viewCount: { increment: 1 } } });
+    // Deduplicated, matching the detail page: one row per browser per event.
+    // A bare create would now hit the unique constraint on the second call from
+    // the same browser and throw, turning a repeat API read into a 500.
+    await db.view
+      .createMany({ data: [{ eventId: id, viewerId }], skipDuplicates: true })
+      .then(({ count }) =>
+        count > 0
+          ? db.event.update({ where: { id }, data: { viewCount: { increment: 1 } } })
+          : null
+      )
+      .catch(() => null);
   }
 
   const [bookmark, refs] = await Promise.all([
@@ -109,6 +118,26 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  await db.event.delete({ where: { id } }).catch(() => null);
+
+  // Distinguish "no such event" from "the delete failed". The previous version
+  // swallowed the error and answered 200 "Event deleted" unconditionally, so a
+  // moderator deleting a row that had a foreign-key violation or a dropped
+  // connection was told it worked, watched the row survive the refetch, and had
+  // no way to tell a no-op from a success.
+  const existing = await db.event.findUnique({ where: { id }, select: { id: true } });
+  if (!existing) {
+    return NextResponse.json({ error: "Event not found" }, { status: 404 });
+  }
+
+  try {
+    await db.event.delete({ where: { id } });
+  } catch (err) {
+    console.error(`[events] delete ${id} failed:`, err instanceof Error ? err.message : err);
+    return NextResponse.json(
+      { error: "Delete failed. The event is still there." },
+      { status: 500 }
+    );
+  }
+
   return NextResponse.json({ message: "Event deleted" });
 }

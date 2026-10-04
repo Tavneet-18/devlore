@@ -27,8 +27,20 @@ export default async function BookmarksPage() {
         <h1 className="mt-4 font-serif text-[clamp(2.4rem,6vw,3.6rem)] font-normal leading-[0.98] tracking-[-0.02em] text-ink">
           Saved <em>events</em>
         </h1>
+        {/*
+          The old copy claimed bookmarks "expire after 30 days". Nothing
+          implemented that: the only delete on Bookmark rows is the per-event
+          unsave, the viewer cookie has a one-year maxAge, and there is no
+          pruning job. The claim was the site asserting behaviour the code did
+          not have, which is the one thing it is not allowed to do.
+
+          This states what actually happens. If real expiry is wanted it should
+          be built and then described here — not described first.
+        */}
         <p className="mt-4 max-w-md text-[14px] leading-relaxed text-muted">
-          Bookmarks are stored against this browser only and expire after 30 days.
+          Bookmarks are tied to an anonymous id in this browser&rsquo;s cookies, so
+          they follow you between pages and nowhere else. They stay until you remove
+          them or clear your browser data.
         </p>
       </header>
 

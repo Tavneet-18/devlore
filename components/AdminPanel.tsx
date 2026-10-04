@@ -21,6 +21,7 @@ const STATUS_TEXT: Record<string, string> = {
 export function AdminPanel() {
   const [tab, setTab] = useState<string>("all");
   const [events, setEvents] = useState<EventDTO[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<string | null>(null);
   const bypassed = true; // Auth is fully removed — always true
@@ -32,10 +33,24 @@ export function AdminPanel() {
         `/api/admin/events${status !== "all" ? `?status=${status}` : ""}`,
         { cache: "no-store" }
       );
+      // A failed moderation fetch must not look like an empty queue. Setting []
+      // on error meant a 500 rendered as "Nothing here." — on the one screen
+      // whose entire purpose is deciding what to review, "I could not reach the
+      // list" and "there is nothing to review" are opposites, and only one of
+      // them is safe to act on.
+      if (!res.ok) {
+        setError(`Could not load the queue (HTTP ${res.status}). Nothing has been reviewed.`);
+        setEvents(null);
+        return;
+      }
       const data = await res.json();
+      setError(null);
       setEvents(data.events ?? []);
-    } catch {
-      setEvents([]);
+    } catch (err) {
+      setError(
+        `Could not reach the moderation API: ${err instanceof Error ? err.message : "network error"}`
+      );
+      setEvents(null);
     } finally {
       setLoading(false);
     }
@@ -99,7 +114,20 @@ export function AdminPanel() {
 
       {loading && <p className="py-16 text-center text-[13px] text-faint">Loading…</p>}
 
-      {!loading && events?.length === 0 && (
+      {error && (
+        <div className="border-y border-critical/40 py-6">
+          <p className="text-[14px] text-critical">{error}</p>
+          <button
+            type="button"
+            onClick={() => void fetchEvents(tab)}
+            className="mt-4 text-[13px] font-semibold text-primary transition-colors hover:text-[#9b8fff]"
+          >
+            Try again →
+          </button>
+        </div>
+      )}
+
+      {!loading && !error && events?.length === 0 && (
         <p className="border-b border-line py-20 text-center text-[14px] text-muted">
           Nothing here.
         </p>

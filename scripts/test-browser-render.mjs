@@ -574,6 +574,48 @@ async function checkQuickLook() {
   }
 }
 
+/**
+ * Claims the code does not actually back up.
+ *
+ * Each of these was a sentence or a response the site asserted and the
+ * implementation did not honour, and each passed every other check because none
+ * of them looked.
+ *
+ * There is deliberately no assertion here that visiting an event page
+ * increments its view count. That would be the most direct test, and it would
+ * also write a View row on every run — so the number meant to measure readers
+ * would be mostly this script. The increment is verified once by hand after
+ * deploy instead, and the dedupe guarantee is enforced by the unique index on
+ * View(viewerId, eventId), which the schema carries.
+ */
+async function checkHonestClaims() {
+  console.log(`\nhonest claims`);
+
+  // DELETE must not report success for an event that is not there. Previously
+  // it swallowed the error and always answered 200 "Event deleted", so a
+  // moderator who failed to delete something was told they had.
+  const missing = "cmur0000000000000000000nonexistent";
+  const res = await fetch(`${origin}/api/events/${missing}`, { method: "DELETE" });
+  const body = await res.json().catch(() => ({}));
+  if (res.status === 404 && /not found/i.test(body.error ?? ""))
+    ok("deleting a non-existent event reports 404, not success");
+  else
+    fail(`DELETE of a missing event returned ${res.status} ${JSON.stringify(body).slice(0, 80)} — a failed delete would look successful`);
+
+  // The bookmarks page claimed a 30-day expiry that no pruning job implements.
+  const page = await browser.newPage();
+  try {
+    await page.goto(`${origin}/bookmarks`, { waitUntil: "networkidle2", timeout: 60000 });
+    const text = await page.evaluate(() => document.body.innerText);
+    if (!/expire after 30 days/i.test(text))
+      ok("bookmarks page makes no unbacked expiry claim");
+    else
+      fail('bookmarks page still claims bookmarks "expire after 30 days" — nothing prunes them');
+  } finally {
+    await page.close();
+  }
+}
+
 try {
   // The front page. The axis and the index are both client-rendered here.
   const home = await check("/", {
@@ -588,6 +630,8 @@ try {
   await checkMobile();
 
   await checkQuickLook();
+
+  await checkHonestClaims();
 
   // /list is the submit form, not an index — it carries the editable fields.
   await check("/list", {

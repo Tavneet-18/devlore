@@ -148,6 +148,11 @@ model View {
 
   event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
+  // One row per browser per event, so viewCount means "distinct browsers that
+  // opened this page" and a refresh cannot inflate it. viewCount is also a
+  // tiebreaker in lib/recommendations.ts, so inflation there would quietly
+  // change which events get suggested.
+  @@unique([viewerId, eventId])
   @@index([viewerId])
   @@index([eventId])
 }
