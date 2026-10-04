@@ -123,6 +123,20 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
    * the page their own view had just made 1. `viewJustCounted` corrects that
    * without paying for a second read.
    *
+   * KNOWN LIMIT, and the reason this still reads 0 for most visitors: a view is
+   * only recorded for someone who already has a `devlore_visitor` cookie, and
+   * only the bookmark route handlers set that cookie. Someone who reads an
+   * event page without ever saving anything has no viewer id, so there is
+   * nothing to deduplicate against and no view is counted. Measured: a plain
+   * visit shows 0 and leaves no cookie; seeding the cookie by hand makes the
+   * first visit count and every later one not.
+   *
+   * Counting every read needs an identifier for anonymous visitors, which means
+   * deciding to identify them — a cookie on every reader rather than only on
+   * people who bookmark. That is a privacy decision, not a bug fix, so it is
+   * not made here. The two honest options are to add middleware that sets the
+   * cookie for everyone, or to drop the counter.
+   *
    * Failures are swallowed deliberately. A view is not worth failing a page
    * render over, and the pre-migration schema may not have this table at all.
    */
