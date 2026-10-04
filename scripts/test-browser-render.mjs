@@ -452,6 +452,29 @@ async function checkQuickLook() {
 
       const trigger = await page.$("button[aria-haspopup='dialog']");
       const triggerTitle = await trigger.evaluate((el) => el.textContent.trim().slice(0, 40));
+
+      // Turning the title into a <button> removed one duplicate link per row,
+      // which took the front page from 142 event links to 94. That is correct
+      // and slightly better for crawlers, but it also means a row's only
+      // crawlable path to the detail page is now the "View ->" link. Assert
+      // that pairing directly, because a row that lost both would leave its
+      // event unreachable from the index while every count-based check passed.
+      const rows = await page.evaluate(() => {
+        const out = [];
+        for (const btn of document.querySelectorAll('button[aria-haspopup="dialog"]')) {
+          const row = btn.closest("div.group");
+          const view = [...(row?.querySelectorAll("a") ?? [])].find(
+            (a) => a.textContent.trim() === "View →"
+          );
+          out.push({ hasView: !!view });
+        }
+        return out;
+      });
+      const orphans = rows.filter((r) => !r.hasView);
+      if (orphans.length === 0)
+        ok(`all ${rows.length} rows keep a crawlable View link`);
+      else fail(`${orphans.length} row(s) have no View link — their detail page is unreachable from the index`);
+
       await trigger.click();
       await new Promise((r) => setTimeout(r, 400));
 
