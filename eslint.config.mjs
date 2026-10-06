@@ -15,6 +15,27 @@ const eslintConfig = defineConfig([
       // arrive in useEffect — so the build, the type check and the 200 response
       // were all green while the page showed nothing but an error boundary.
       "no-use-before-define": ["error", { variables: true, functions: false, classes: false }],
+
+      // A leading underscore means "this parameter exists to satisfy a signature, not
+      // because the function reads it".
+      //
+      // Load-bearing rather than cosmetic. DiscoverySource.fetch takes
+      // (location, opts); Hack2Skill publishes one global listing and ignores
+      // the location, so its adapter must still declare the parameter to stay
+      // assignable to that interface. Without the convention the only ways to
+      // satisfy the rule are to read the value or drop the parameter, and both
+      // are worse: one is a fake reference, the other is a type error.
+      //
+      // This has to be the @typescript-eslint variant, not the base rule.
+      // eslint-config-next sets the base rule to "off" and enables the
+      // TS-aware one instead; naming the base rule here switched it back on and
+      // it then reported five unused callback parameters the TS rule correctly
+      // ignores, so the fix appeared to introduce warnings rather than remove
+      // one.
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^_", ignoreRestSiblings: true },
+      ],
     },
   },
   {

@@ -42,8 +42,20 @@ function normaliseEventType(value: string | undefined): string {
  * the URL were part of the identity it would create a duplicate row instead of
  * updating the existing one.
  *
- * What is left is exactly what can change the meaning of the summary: the
- * title, the description, the dates, the city and the registration link.
+ * What is left is exactly what can change what the row *says* to a reader:
+ * the title, the description, the dates, the place, the organiser, what kind of
+ * event it is, whether it is online, who it is for, and the registration link.
+ *
+ * `organizer`, `eventType`, `isOnline` and `beginnerFriendly` were all missing
+ * from this list, and all four are rendered on the card, the quick-look and the
+ * detail page. A platform that corrected its own name, reclassified an event
+ * from hackathon to workshop, or fixed an online listing as in-person produced
+ * a byte-identical hash, so the row was treated as unchanged and the correction
+ * could never land — not on the next run, not ever. All four are hashed now.
+ *
+ * The cost of adding fields is that every stored hash goes stale once, so the
+ * next ingest rewrites every row it can see. That is one redundant upsert per
+ * row with identical content, which is the cheap direction to be wrong in.
  */
 function hashContent(event: {
   title: string;
@@ -51,6 +63,10 @@ function hashContent(event: {
   date: string;
   city?: string;
   link?: string;
+  organizer?: string;
+  eventType?: string;
+  isOnline?: boolean;
+  beginnerFriendly?: boolean;
   deadlineKind?: string | null;
   details?: unknown;
 }): string {
@@ -62,6 +78,15 @@ function hashContent(event: {
         event.date,
         event.city ?? "",
         event.link ?? "",
+        // Shown on the card, the quick-look and the detail page, and used as a
+        // moderation signal, so a correction to it has to rewrite the row.
+        (event.organizer ?? "").trim(),
+        event.eventType ?? "",
+        // Drives the "Online / In person" clause in the one-liner, the Mode row
+        // in the facts, and whether a venue is shown at all.
+        event.isOnline === undefined ? "" : String(event.isOnline),
+        // Rendered as a beginner-friendly flag and used by the index filter.
+        event.beginnerFriendly === undefined ? "" : String(event.beginnerFriendly),
         // Which date this row's countdown measures is part of what the row
         // says, so a source that starts or stops publishing a real deadline
         // must rewrite the row. Without it here, a corrected kind would be
@@ -193,6 +218,7 @@ async function upsertEvent(
 
       if (dupes.length > 0) {
         const winner = dupes[0].canonicalId;
+        const canonical = nearby.find((n) => n.id === winner);
         const refId = raw.sourceId ?? externalId;
         await db.eventSourceRef.upsert({
           where: { source_sourceId: { source: raw.source, sourceId: refId } },
@@ -205,9 +231,38 @@ async function upsertEvent(
           update: { lastSeenAt: new Date(), link: raw.link ?? undefined },
         });
         // Refresh the canonical so a poster or date correction still lands.
+        //
+        // The comment above used to claim that and the code did not do it: this
+        // update carried only imageUrl and fetchedAt, so a registration
+        // deadline extended on a second platform never reached the row readers
+        // actually see. A duplicate record is discarded immediately after this,
+        // so nothing downstream would ever apply the correction.
+        //
+        // Extend-only, deliberately. When two platforms describe one event,
+        // there is no principled way to say which is authoritative, and the
+        // asymmetry matters: extending a deadline can only give a reader more
+        // time, while shortening it on the say-so of a possibly-staler second
+        // source would close an event that is still genuinely open. So an
+        // incoming deadline replaces the canonical one only when the canonical
+        // has none, or when the incoming one is later. A correction that moves
+        // a date earlier is dropped rather than guessed at.
+        const deadlineExtended = (() => {
+          const incoming = endDate;
+          if (!incoming) return false;
+          const current = canonical?.endDate ?? null;
+          if (!current) return true;
+          return incoming.getTime() > current.getTime();
+        })();
+
         await db.event.update({
           where: { id: winner },
-          data: { imageUrl: raw.imageUrl ?? undefined, fetchedAt: new Date() },
+          data: {
+            imageUrl: raw.imageUrl ?? undefined,
+            fetchedAt: new Date(),
+            ...(deadlineExtended
+              ? { date, endDate: endDate ?? undefined, deadlineKind: raw.deadlineKind ?? undefined }
+              : {}),
+          },
         });
         return { created: false, updated: true, skipped: false, merged: true };
       }
@@ -330,9 +385,23 @@ export async function ingestCityAgnostic(): Promise<SourceStat[]> {
     };
 
     try {
+      // What we already hold from this source, so an adapter with a per-run
+      // request budget spends it on slugs it has never fetched rather than
+      // re-reading the same ones. Cheap: one indexed lookup of ids only, and
+      // it replaces up to H2S_MAX_FETCHES round trips of reading rows we would
+      // then throw away.
+      const known = caps.sourceIdentity
+        ? await db.event.findMany({
+            where: { source: source.id, sourceId: { not: null } },
+            select: { sourceId: true },
+          })
+        : [];
+
       // The location argument is ignored by these adapters by design; it is
       // passed only to satisfy the shared DiscoverySource signature.
-      const events = await source.fetch("");
+      const events = await source.fetch("", {
+        excludeSourceIds: known.map((k) => k.sourceId as string),
+      });
       stat.fetched = events.length;
 
       for (const raw of events) {

@@ -1,4 +1,4 @@
-import type { AIEnhancer, DiscoverySource } from "./types";
+import type { AIEnhancer, DiscoveryOptions, DiscoverySource } from "./types";
 import { MockAIEnhancer } from "./mockEnhancer";
 import { GroqEnhancer } from "./groqEnhancer";
 import { MOCK_SOURCES } from "./mockSources";
@@ -46,12 +46,22 @@ export function getDiscoverySources(_location: string): DiscoverySource[] {
  * Sources with no location dimension.
  *
  * These platforms publish a single global listing and expose no city filter,
- * so they are fetched once per run rather than once per city. Their fetch
- * signature takes no argument for the same reason.
+ * so they are fetched once per run rather than once per city. They take an empty
+ * location for the same reason.
+ *
+ * The wrapper exists to adapt their fetch signature to the shared
+ * DiscoverySource one, and it has to forward BOTH arguments. It used to be
+ * `fetch: () => s.fetch()`, which silently discarded everything — so
+ * DiscoveryOptions could never reach an adapter, and the Hack2Skill request
+ * budget went on re-reading slugs already held. A wrapper that drops arguments
+ * is worse than no wrapper, because the interface still looks satisfied.
  */
 export function getCityAgnosticSources(): DiscoverySource[] {
   if ((process.env.DISCOVERY_MODE ?? "mock") !== "live") return [];
-  return CITY_AGNOSTIC_SOURCES.map((s) => ({ ...s, fetch: () => s.fetch() }));
+  return CITY_AGNOSTIC_SOURCES.map((s) => ({
+    ...s,
+    fetch: (_location: string, opts?: DiscoveryOptions) => s.fetch("", opts),
+  }));
 }
 
 export function dedupeEvents<T extends { title: string; date?: string; city?: string; source?: string }>(raw: T[]) {

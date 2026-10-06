@@ -1,4 +1,4 @@
-import type { RawEvent } from "../types";
+import type { DiscoveryOptions, RawEvent } from "../types";
 import { politeFetch, fetchText, fetchJson, extractNextData, decodeFlightPayload } from "./http";
 import type { EventDetails } from "../../event-details";
 import { readTeamSize } from "../../event-details";
@@ -302,7 +302,7 @@ function parseBlockedSlugs(robots: string): Set<string> {
   return blocked;
 }
 
-const hack2skillFetch = async (): Promise<RawEvent[]> => {
+const hack2skillFetch = async (_location = "", opts?: DiscoveryOptions): Promise<RawEvent[]> => {
   const robots = await fetchText(`${H2S_BASE}/robots.txt`, { timeoutMs: 10_000 });
   const blocked = robots ? parseBlockedSlugs(robots) : new Set<string>();
 
@@ -311,7 +311,29 @@ const hack2skillFetch = async (): Promise<RawEvent[]> => {
 
   const now = Date.now();
   const cutoff = now - H2S_LOOKBACK_DAYS * DAY;
+  const seen = new Set(opts?.excludeSourceIds ?? []);
 
+  /**
+   * The budget goes to slugs we have never fetched.
+   *
+   * This adapter caps itself at H2S_MAX_FETCHES requests per run and used to
+   * spend all of them on the same newest-40 slugs, every run. Two consequences,
+   * both permanent rather than temporary:
+   *
+   * Starvation. Anything ranked 41st or lower was never requested and could
+   * only ever become reachable once 40 newer entries aged out of the 180-day
+   * window. Since the sitemap keeps growing and old pages keep being touched,
+   * that may never happen. Measured across the sitemap: 301 slugs are excluded
+   * by the lookback, and 1 in 10 of those has a registration deadline still in
+   * the future, so roughly 30 events are being missed outright.
+   *
+   * Wasted work. All 40 requests were re-issued daily at one-per-second purely
+   * so hashContent could match and the row could be skipped — about 40 seconds
+   * of wall time per run to conclude nothing had changed.
+   *
+   * Excluding what we already hold fixes both, and the row the request would
+   * have produced is already in the database.
+   */
   const candidates = [...sitemap.matchAll(/<url>([\s\S]*?)<\/url>/g)]
     .map((m) => ({
       loc: m[1].match(/<loc>([^<]+)<\/loc>/)?.[1] ?? "",
@@ -321,9 +343,18 @@ const hack2skillFetch = async (): Promise<RawEvent[]> => {
     .map((e) => ({ ...e, slug: (e.loc.split("/event/")[1] ?? "").split("/")[0]?.toLowerCase() ?? "" }))
     // Honour robots.txt before anything is requested.
     .filter((e) => e.slug && !blocked.has(e.slug))
+    // Already fetched and stored. Dropped before the lookback and the cap, so
+    // the budget can only ever go to something new.
+    .filter((e) => !seen.has(e.slug))
     .filter((e) => {
       const t = new Date(e.lastmod).getTime();
-      return !Number.isNaN(t) && t >= cutoff;
+      // A URL with no <lastmod> used to be discarded here unconditionally, which
+      // made such a slug permanently unreachable — there is no lastmod to fall
+      // out of the window. It is still fetched once if we have never seen it;
+      // the adapter's own isStillRelevant check then decides on the real dates,
+      // which is a far better test than a sitemap timestamp.
+      if (Number.isNaN(t)) return true;
+      return t >= cutoff;
     })
     .sort((a, b) => b.lastmod.localeCompare(a.lastmod))
     .slice(0, H2S_MAX_FETCHES);

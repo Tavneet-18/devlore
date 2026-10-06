@@ -53,10 +53,22 @@ export interface RawEvent {
   details?: EventDetails;
 }
 
+export interface DiscoveryOptions {
+  /**
+   * Source ids this adapter has already produced for us.
+   *
+   * Passed by the ingest layer from rows it already holds, so an adapter with a
+   * per-run request budget can spend that budget on things it has never seen
+   * rather than re-reading the same top-N every day. Adapters that have no cap
+   * ignore it.
+   */
+  excludeSourceIds?: readonly string[];
+}
+
 export interface DiscoverySource {
   id: string;
   displayName: string;
-  fetch(location: string): Promise<RawEvent[]>;
+  fetch(location: string, opts?: DiscoveryOptions): Promise<RawEvent[]>;
 }
 
 export interface DiscoveryResult {

@@ -8,6 +8,7 @@ import { getViewerId } from "@/lib/session";
 import { rateLimit } from "@/lib/rate-limit";
 import { clientKey } from "@/lib/request-identity";
 import { getSchemaCapabilities } from "@/lib/schema-capabilities";
+import { findDuplicates, normaliseTitle } from "@/lib/dedupe";
 
 export const dynamic = "force-dynamic";
 
@@ -204,6 +205,69 @@ export async function POST(request: NextRequest) {
   }
 
   const enhancement = await getEnhancer().enhance(title, description, link ?? undefined);
+
+  /**
+   * Refuse a duplicate rather than queueing a second row for it.
+   *
+   * A manual submission sets neither `externalId` nor `sourceId`, and Postgres
+   * treats NULLs as distinct in a unique index — so both unique constraints on
+   * this table are no-ops here. Submitting the same event five times created
+   * five PENDING rows, and a moderator then had five identical entries to
+   * reject one at a time, with nothing on the page saying they were the same
+   * event.
+   *
+   * The test is the same findDuplicates the ingest path uses, so "the same
+   * event" means one thing across the site: same normalised title, overlapping
+   * dates, compatible place. Two events sharing a title on different dates are
+   * two events.
+   *
+   * The existing row is reported rather than silently swallowed, including its
+   * state, because "already listed" and "already waiting for review" are
+   * different answers and the submitter is entitled to both.
+   */
+  const titleKey = normaliseTitle(title);
+  if (titleKey) {
+    const head = titleKey.slice(0, 8);
+    const nearby = head
+      ? await db.event.findMany({
+          where: {
+            status: { not: "REJECTED" },
+            title: { contains: head, mode: "insensitive" },
+          },
+          select: { id: true, title: true, date: true, endDate: true, city: true, isOnline: true, status: true },
+          take: 60,
+        })
+      : [];
+
+    const dupes = nearby.length
+      ? findDuplicates(
+          {
+            id: "__incoming__",
+            title,
+            date: parsedDate.toISOString(),
+            endDate: null,
+            city,
+            isOnline: typeof isOnline === "boolean" ? isOnline : enhancement.isOnline,
+          },
+          nearby
+        )
+      : [];
+
+    const dupe = dupes.find((d) => nearby.some((n) => n.id === d.canonicalId));
+    if (dupe) {
+      const existing = nearby.find((n) => n.id === dupe.canonicalId);
+      return NextResponse.json(
+        {
+          error:
+            existing?.status === "PENDING"
+              ? "An identical event is already waiting for review."
+              : "This event is already in the index.",
+          existing: { id: dupe.canonicalId, title: existing?.title, status: existing?.status },
+        },
+        { status: 409 }
+      );
+    }
+  }
 
   const event = await db.event.create({
     data: {
