@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { EventDTO } from "@/lib/events";
 import { EVENT_TYPES, EVENT_TYPE_LABELS } from "@/lib/constants";
 import { formatDateRange } from "@/lib/format";
@@ -248,6 +248,15 @@ function EditRow({ event, onDone }: { event: EventDTO; onDone: (changed: boolean
     status: event.status,
   });
   const [saving, setSaving] = useState(false);
+  const first = useRef<HTMLInputElement>(null);
+
+  // Opening this form unmounts the button that opened it, so focus fell to
+  // <body> and a keyboard user had to Tab the length of the queue to find the
+  // form they had just opened. Moving focus into the first field is the
+  // difference between the form being usable and unusable without a mouse.
+  useEffect(() => {
+    first.current?.focus();
+  }, []);
 
   async function save() {
     setSaving(true);
@@ -271,6 +280,7 @@ function EditRow({ event, onDone }: { event: EventDTO; onDone: (changed: boolean
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Labeled label="Title" wide>
           <input
+            ref={first}
             className={input}
             value={form.title}
             onChange={(e) => setForm({ ...form, title: e.target.value })}

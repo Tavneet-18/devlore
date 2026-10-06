@@ -150,7 +150,24 @@ export function TimeAxis({ events, now: nowIso }: { events: EventDTO[]; now: str
         </p>
       </div>
 
-      <div className="no-scrollbar overflow-x-auto">
+      {/*
+        tabIndex is the whole fix. This band is 2880px wide inside a scroller
+        whose scrollbar is hidden in both engines, so before this it had no
+        focus-order entry, no arrow-key scrolling, and no visual hint that it
+        moved at all — the centrepiece of the desktop page was reachable only by
+        dragging with a mouse. `role="region"` plus a name is what makes the
+        focus announce as something rather than an anonymous group.
+
+        The ring comes from the global :focus-visible rule, so the affordance
+        exists only for keyboard users and the design is untouched for everyone
+        else.
+      */}
+      <div
+        className="no-scrollbar overflow-x-auto"
+        tabIndex={0}
+        role="region"
+        aria-label="Spatial axis — scroll sideways for later dates"
+      >
         <div className="relative" style={{ width: model.width, height: model.bandH }}>
           {/* The past, shaded so the divide reads before the NOW line does. */}
           <div

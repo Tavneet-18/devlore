@@ -51,6 +51,17 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           is required because the class may differ from what SSR emitted. */}
       <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       <body className="relative min-h-full bg-bg text-ink">
+        {/* Skip to content. The nameplate and footer are on every page, so a
+            keyboard user opening any route had to Tab through the full nav on
+            every navigation to reach the thing they came for. sr-only until
+            focused, so it costs a sighted user nothing. */}
+        <a
+          href="#main"
+          className="tap-target sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-[2px] focus:border focus:border-line-hi focus:bg-surface focus:px-4 focus:py-2 focus:text-[13px] focus:font-semibold focus:text-ink"
+        >
+          Skip to content
+        </a>
+
         {/* Ambient atmosphere. Felt, not seen. */}
         <div aria-hidden className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
           <div className="absolute -left-[160px] -top-[160px] h-[640px] w-[640px] rounded-full bg-primary opacity-[0.12] blur-[120px]" />
@@ -59,7 +70,12 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
 
         <div className="relative z-10 flex min-h-full flex-col">
           <Nameplate dateLine={dateLine(now)} />
-          <main className="flex-1">{children}</main>
+          {/* tabIndex -1 so the skip link can move focus here. Without it the
+              link scrolls but leaves focus on the link itself, and the next Tab
+              carries on from the nav rather than from the content. */}
+          <main id="main" tabIndex={-1} className="flex-1 focus:outline-none">
+            {children}
+          </main>
           <Footer />
         </div>
       </body>

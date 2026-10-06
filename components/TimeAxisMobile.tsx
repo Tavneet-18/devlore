@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useMemo } from "react";
 import type { EventDTO } from "@/lib/events";
 import { EVENT_TYPE_LABELS } from "@/lib/constants";
-import { countdown } from "@/lib/format";
+import { countdown, formatDateRange } from "@/lib/format";
 import { useNow } from "@/lib/use-now";
 import { accentFor, accentTextFor } from "./EventCard";
 import { MOBILE_WINDOW, useAxisModel, type AxisEvent } from "@/lib/use-axis-model";
@@ -182,7 +182,14 @@ export function TimeAxisMobile({
               </div>
 
               {/* The date rail, on the right. The month is named once, on the
-                  first row that falls in it. */}
+                  first row that falls in it.
+
+                  That visual economy left the rail announcing bare numbers —
+                  six rows in seven said just "17", with no month and no year,
+                  because the month label belongs to the first row of the month
+                  rather than to every row. The full date goes in an aria-label
+                  so the rail reads as dates; the visible layout is untouched,
+                  which is the point of this design. */}
               <div className="w-7 shrink-0 text-right">
                 {month && (
                   <span className="block text-[9px] uppercase tracking-[0.14em] text-faint-dim">
@@ -190,6 +197,7 @@ export function TimeAxisMobile({
                   </span>
                 )}
                 <span
+                  aria-label={formatDateRange(new Date(d).toISOString())}
                   className={`font-serif text-[15px] leading-tight ${
                     isToday ? "text-primary" : "text-faint"
                   }`}

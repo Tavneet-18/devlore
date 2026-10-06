@@ -214,6 +214,7 @@ export function EventExplorer({
         <div className="flex flex-wrap items-center gap-x-8 gap-y-3 coarse:gap-y-6">
           <div className="relative tap-target">
             <svg
+              aria-hidden
               className="pointer-events-none absolute left-0 top-1/2 -translate-y-1/2 text-faint"
               width="15"
               height="15"
@@ -225,11 +226,17 @@ export function EventExplorer({
               <circle cx="11" cy="11" r="7" />
               <path d="m21 21-4.3-4.3" strokeLinecap="round" />
             </svg>
+            {/* aria-label, not a <label>. A placeholder is not an accessible
+                name: it disappears on first keystroke and is skipped by some
+                screen readers entirely, which left this input announced only as
+                "edit text". Visually hidden, so nothing about the layout or the
+                design changes. */}
             <input
               type="search"
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="Search"
+              aria-label="Search events by title, city or tag"
               className="w-[200px] border-b border-line bg-transparent py-1.5 pl-6 pr-2 text-sm text-ink placeholder:text-faint transition-colors focus:border-primary focus:outline-none"
             />
           </div>
@@ -255,7 +262,9 @@ export function EventExplorer({
 
         <div className="no-scrollbar flex items-center gap-1 overflow-x-auto text-[13px] whitespace-nowrap">
           <button
+            type="button"
             onClick={() => onCity("")}
+            aria-pressed={!city}
             className={`tap-target rounded px-2 py-0.5 transition-colors ${
               !city ? "text-ink" : "text-faint hover:text-muted"
             }`}
@@ -265,7 +274,11 @@ export function EventExplorer({
           {CITIES.map((c) => (
             <button
               key={c}
+              type="button"
               onClick={() => onCity(c)}
+              // Same reason as the type/mode chips: the active city was
+              // distinguishable only by the shade of its text.
+              aria-pressed={city === c}
               className={`tap-target rounded px-2 py-0.5 transition-colors ${
                 city === c ? "text-ink" : "text-faint hover:text-muted"
               }`}
@@ -273,7 +286,12 @@ export function EventExplorer({
               {c}
             </button>
           ))}
-          <span className="ml-auto text-[13px] text-faint">
+          {/* The result count and the load/error state are announced, because a
+              reader who filters by voice or keyboard gets no other signal that
+              anything happened. `polite` rather than `assertive`: this updates on
+              every keystroke of the search box and interrupting each time would
+              make the field unusable. */}
+          <span className="ml-auto text-[13px] text-faint" role="status" aria-live="polite">
             {loading && events === null
               ? stalled
                 ? "timed out"
@@ -284,7 +302,14 @@ export function EventExplorer({
         </div>
       </div>
 
-      {error && <p className="mt-10 text-sm text-critical">{error}</p>}
+      {/* role="alert" so a failed load is announced rather than appearing silently.
+          A reader who cannot see the red text has no other way of knowing the
+          page is not showing events. */}
+      {error && (
+        <p className="mt-10 text-sm text-critical" role="alert">
+          {error}
+        </p>
+      )}
 
       {/* A stalled request gets a dead end and a way out, not a longer shimmer. */}
       {stalled && events === null && (
@@ -392,19 +417,27 @@ function Tabs({
   // pitch at 47px, clear of the 44px target.
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2 coarse:gap-y-6">
-      {options.map((opt) => (
-        <button
-          key={opt.id}
-          onClick={() => onChange(opt.id)}
-          className={`tap-target border-b pb-0.5 text-[13px] transition-colors ${
-            value === opt.id
-              ? "border-primary text-ink"
-              : "border-transparent text-faint hover:text-muted"
-          }`}
-        >
-          {opt.label}
-        </button>
-      ))}
+      {options.map((opt) => {
+        const selected = value === opt.id;
+        return (
+          <button
+            key={opt.id}
+            type="button"
+            onClick={() => onChange(opt.id)}
+            // The selected filter was previously distinguishable only by colour
+            // — text-ink against text-faint. Colour alone is not an accessible
+            // state, so this was invisible to anyone who cannot separate those
+            // two greys. aria-pressed is what carries it now; the styling is
+            // unchanged so the design reads exactly as before for everyone.
+            aria-pressed={selected}
+            className={`tap-target border-b pb-0.5 text-[13px] transition-colors ${
+              selected ? "border-primary text-ink" : "border-transparent text-faint hover:text-muted"
+            }`}
+          >
+            {opt.label}
+          </button>
+        );
+      })}
     </div>
   );
 }
