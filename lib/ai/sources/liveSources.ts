@@ -257,83 +257,182 @@ const devpostFetch: ExtractFn = async (city) => {
 
 // --- Unstop (public JSON search) ---
 //
-// Currently yields NOTHING, and the header comment above used to claim
-// otherwise. /api/public/opportunity/search-result answers HTTP 200 with valid
-// JSON containing an empty array for every parameter combination tried
-// (oppstatus present and absent, perPage 12 and 25, oppstatus=recent), so the
-// adapter is wired correctly against an endpoint that no longer serves results
-// without a session. The site renders the same data client-side, so recovering
-// it means finding the request the page actually makes rather than guessing at
-// parameters.
+// Yielded NOTHING for its entire life, through three independent bugs stacked on
+// top of each other. Each was independently sufficient to produce zero rows,
+// which is why guessing at parameters never found the problem and the source
+// got written off as dead.
 //
-// Left wired rather than deleted: the endpoint may recover, and a source that
-// returns [] costs one request. What is NOT left is the invented description it
-// used to fall back to.
+// 1. `opportunity=hackathon`, singular. The correct value is `hackathons`. The
+//    API answers 200 with a valid empty array rather than an error, so a typo
+//    in one filter value is indistinguishable from a dead endpoint.
+// 2. The response is a paginated envelope, `{ data: { data: [...] } }`. The
+//    adapter read `data.data ?? data`, which is the envelope, not the rows.
+// 3. Every field name it read was absent from the payload. There is no
+//    `startDate`, `endDate`, `location`, `city` or `description` — they are
+//    `start_regn_dt`, `end_regn_dt`, `address_with_country_logo` and `details`.
+//    So `parseEventDate("")` returned null and the date guard dropped all 263
+//    open listings on the first parse.
+//
+// Found by rendering unstop.com/hackathons and reading the request the page
+// actually makes, rather than continuing to guess. The endpoint was never
+// broken and never needed a session.
+//
+// 263 open hackathons, which makes this the second-largest source on the site
+// after Devfolio.
+const UNSTOP_PER_PAGE = 50;
+
 const unstopFetch: ExtractFn = async (city) => {
   try {
     const url =
-      `https://unstop.com/api/public/opportunity/search-result?opportunity=hackathon` +
-      `&searchTerm=${encodeURIComponent(city)}&page=1&perPage=12&oppstatus=open`;
+      `https://unstop.com/api/public/opportunity/search-result?opportunity=hackathons` +
+      `&page=1&per_page=${UNSTOP_PER_PAGE}&oppstatus=open`;
     const res = await fetch(url, {
-      signal: AbortSignal.timeout(10000),
-      headers: { Accept: "application/json" },
+      signal: AbortSignal.timeout(15000),
+      headers: {
+        Accept: "application/json",
+        "User-Agent": USER_AGENT,
+        // The endpoint is public, but it sits behind a bot filter that treats a
+        // request with no referer as unattributed.
+        Referer: "https://unstop.com/hackathons",
+      },
     });
-    if (!res.ok) throw new Error(String(res.status));
+    if (!res.ok) return [];
 
     const data = await res.json();
-    const items = (data.data?.data ?? data.data ?? []) as Record<string, unknown>[];
+    const items = (data?.data?.data ?? []) as Record<string, unknown>[];
 
     const out: RawEvent[] = [];
     for (const o of items) {
-      const title = String(o.title ?? o.opportunityTitle ?? "").trim();
+      const title = String(o.title ?? "").trim();
       if (!title) continue;
 
       const regn = (o.regnRequirements ?? {}) as {
-        startDate?: string;
-        endDate?: string;
-        eligible?: string;
+        start_regn_dt?: string;
+        end_regn_dt?: string;
+        min_team_size?: number;
+        max_team_size?: number;
       };
-      const start = parseEventDate(String(o.startDate ?? regn.startDate ?? ""));
-      if (!start || !isStillRelevant(start)) continue;
-      const end = parseEventDate(String(o.endDate ?? regn.endDate ?? ""));
 
-      const locationText = String(o.location ?? o.city ?? "");
-      const isOnline = /online|virtual|remote|pan-?india/i.test(locationText);
-      // Eligibility goes into `details` rather than only into prose, so the
-      // detail page and quick-look render it as a structured row ("Who can
-      // join") instead of burying it in a sentence. Only set when the platform
-      // actually states it.
-      const eligibility = String(regn.eligible ?? "").trim();
+      // THE HONESTY PROBLEM, and the reason this mapping is careful.
+      //
+      // Unstop's search payload publishes a REGISTRATION window and no event
+      // start date at all. There is no field to read for when the hackathon
+      // actually runs.
+      //
+      // So `date` — which every surface labels "Runs" — is set to the
+      // registration deadline, and the row is told plainly what that date is:
+      // `deadlineKind: "registration"` makes the card say "Closes <date>" rather
+      // than "Runs <date>", and suppresses the calendar buttons, which would
+      // otherwise offer to add a registration deadline as if it were the event.
+      // The reader is shown the one date actually published.
+      //
+      // The alternative is to drop all 263 listings because the start date is
+      // missing. The previous adapter did that by accident, reading field names
+      // this payload does not have, which is why a source with 263 open
+      // hackathons on it has never contributed a single row.
+      const regEnd = parseEventDate(regn.end_regn_dt);
+      if (!regEnd || !isStillRelevant(regEnd)) continue;
+      const regStart = parseEventDate(regn.start_regn_dt);
+
+      // Unstop's own online/offline flag, which is more reliable than sniffing
+      // the location text for the word "online".
+      const addr = (o.address_with_country_logo ?? {}) as {
+        address?: string;
+        city?: string;
+        state?: string;
+      };
+      // Unstop repeats the city across address, city and state — Jammu publishes
+      // address "Jammu", city "Jammu", state "Jammu and Kashmir", which
+      // concatenated naively reads "Jammu, Jammu, Jammu and Kashmir". Assemble
+      // the parts in order and drop any that add nothing the earlier ones did
+      // not already say.
+      const venueRaw = [addr.address, addr.city, addr.state]
+        .map((s) => String(s ?? "").trim())
+        .filter(Boolean)
+        .filter((part, i, all) => !all.slice(0, i).some((prev) => prev.includes(part)))
+        .join(", ");
+      const isOnline = String(o.region ?? "").toLowerCase() === "online";
+
+      // Only LIVE listings. Without this the adapter had no way to tell a
+      // closed registration from an open one.
+      if (String(o.status ?? "").toUpperCase() !== "LIVE") continue;
+
+      const orgName = String((o.organisation as { name?: string } | undefined)?.name ?? "").trim();
+      const seoUrl = String(o.seo_url ?? "").trim();
+
+      // Eligibility as the platform names it. `filters` carries readable
+      // audience groups ("Engineering Students"); the raw `eligibility` blob is
+      // a JSON string of internal sector codes, which is not something to show
+      // a reader.
+      const eligibleLabels = Array.isArray(o.filters)
+        ? (o.filters as { type?: string; name?: string }[])
+            .filter((f) => f.type === "eligible" && f.name && f.name !== "All")
+            .map((f) => String(f.name).trim())
+        : [];
+      const eligibility = eligibleLabels.length ? eligibleLabels.join(", ") : null;
+
+      // Prizes as published — a list of { rank, cash }. Rendered as the ranked
+      // list Unstop states, not summed into a single headline number, because
+      // Unstop does not publish one and a total would be our arithmetic.
+      const prizes = Array.isArray(o.prizes)
+        ? (o.prizes as { rank?: string; cash?: number; currency?: string }[])
+            .filter((p) => Number(p.cash) > 0)
+            .map((p) => `${String(p.rank ?? "").trim() || "Prize"} ₹${Number(p.cash).toLocaleString("en-IN")}`)
+        : [];
+      const prizeLabel = prizes.length ? prizes.join(", ") : null;
+
+      // Paid entries, from the amount Unstop publishes. Its absence never
+      // implies free — that distinction is the whole point of `feeAmount` being
+      // separate from `fee`.
+      const services = Array.isArray(o.payment_services)
+        ? (o.payment_services as { amount?: number }[])
+        : [];
+      const paidAmount = services.reduce((s, p) => s + Number(p.amount ?? 0), 0);
+
+      const teamMin = Number(regn.min_team_size ?? 0);
+      const teamMax = Number(regn.max_team_size ?? 0);
+      const registered = Number(o.registerCount ?? 0);
 
       out.push({
         source: "unstop",
-        sourceId: o.seoUrl ? String(o.seoUrl) : undefined,
+        // The platform's own numeric id. Stable across title edits, which the
+        // SEO url is not.
+        sourceId: o.id ? String(o.id) : seoUrl || undefined,
         title,
-        // The organiser's own text. The previous fallback invented "Apply and
-        // form a team to compete" for any record with a blank description —
-        // asserting that a listing is a team competition when the response may
-        // describe a workshop, a quiz or a fellowship. Eligibility is used
-        // because it is a fact the payload carries, and nothing else is added.
-        description:
-          stripHtml(String(o.description ?? o.des ?? "")) ||
-          [eligibility ? `Eligibility: ${eligibility}.` : ""].filter(Boolean).join(" "),
-        details: eligibility ? { eligibility: eligibility.slice(0, 400) } : undefined,
-        date: start,
-        endDate: end ?? undefined,
-        venue: locationText || undefined,
-        city: isOnline ? undefined : city,
+        // The organiser's own words, and nothing substituted when empty. The
+        // previous fallback invented "Apply and form a team to compete" for any
+        // record with a blank description, asserting that a listing was a team
+        // competition when it might be a workshop, a quiz or a fellowship.
+        description: stripHtml(String(o.details ?? "")),
+        date: regEnd,
+        endDate: undefined,
+        deadlineKind: "registration",
+        venue: isOnline ? undefined : venueRaw || undefined,
+        city: isOnline ? undefined : String(addr.city ?? "").trim() || city,
         isOnline,
-        organizer: String(
-          (o.organisation as { name?: string } | undefined)?.name ?? o.organisationName ?? "Unstop"
-        ),
-        link: String(o.seoUrl ? `https://unstop.com/${o.seoUrl}` : "https://unstop.com/hackathons"),
+        organizer: orgName || "Unstop",
+        link: seoUrl || undefined,
+        // The organiser's mark, not an event poster. Unstop publishes no event
+        // image in this payload — `thumb` is the literal string "null" — so
+        // logoUrl2 is the difference between a real image and a broken one.
+        imageUrl: normaliseImage(String(o.logoUrl2 ?? "")),
         // Justified by the request itself: the query pins
-        // `opportunity=hackathon`, so every row this adapter can see is one.
-        // The parameter, not the platform, is what decides the type.
+        // `opportunity=hackathons`, so every row this adapter can see is one.
+        // The parameter, not the platform, decides the type.
         eventType: "hackathon",
+        details: {
+          ...(prizeLabel ? { prize: prizeLabel.slice(0, 300) } : {}),
+          ...(eligibility ? { eligibility: eligibility.slice(0, 400) } : {}),
+          ...(teamMin >= 1 ? { teamMin } : {}),
+          ...(teamMax >= 1 ? { teamMax } : {}),
+          ...(registered > 0 ? { participants: registered } : {}),
+          ...(regStart ? { submissionStart: regStart } : {}),
+          ...(paidAmount > 0 ? { feeAmount: `₹${paidAmount.toLocaleString("en-IN")}` } : {}),
+          ...(orgName ? { organiser: orgName.slice(0, 120) } : {}),
+        },
       });
     }
-    return out.slice(0, 8);
+    return out;
   } catch {
     return [];
   }
