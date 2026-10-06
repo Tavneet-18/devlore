@@ -588,6 +588,22 @@ async function checkQuickLook() {
  * deploy instead, and the dedupe guarantee is enforced by the unique index on
  * View(viewerId, eventId), which the schema carries.
  */
+/**
+ * Descriptions the ingest adapters used to invent.
+ *
+ * Two adapters had a `description || <invented sentence>` fallback, so a source
+ * record with a blank description became a confident paragraph of prose the
+ * site had made up. GDG's asserted "Talks, demos and networking" about a
+ * session it had never read — which could have been a workshop, a study jam or
+ * a conference. Unstop's asserted "Apply and form a team to compete" about any
+ * listing, including ones that are not competitions at all.
+ *
+ * Cheap to assert and impossible to notice by reading, since the sentences read
+ * like ordinary copy.
+ */
+const INVENTED_DESCRIPTIONS =
+  /community session in|Talks, demos and networking|Apply and form a team to compete/i;
+
 async function checkHonestClaims() {
   console.log(`\nhonest claims`);
 
@@ -614,6 +630,18 @@ async function checkHonestClaims() {
   } finally {
     await page.close();
   }
+
+  // No stored event may carry a description an adapter made up.
+  const events = await (await fetch(`${origin}/api/events`)).json();
+  const fabricated = (events.events ?? []).filter((e) =>
+    INVENTED_DESCRIPTIONS.test(`${e.description ?? ""} ${e.summary ?? ""}`)
+  );
+  if (fabricated.length === 0) ok("no event carries an adapter-invented description");
+  else
+    fail(
+      `${fabricated.length} event(s) carry a fabricated description: ` +
+        fabricated.map((e) => `"${e.title}"`).join(", ")
+    );
 }
 
 /**

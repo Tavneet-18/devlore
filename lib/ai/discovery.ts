@@ -60,12 +60,29 @@ function clean(event: RawEvent, location: string): RawEvent | null {
     title,
     date: parsed.toISOString(),
     endDate,
-    city: cleanCity(event.city, location),
+    city: cleanCity(event.city, location, event.isOnline === true),
     organizer,
   };
 }
 
-function cleanCity(raw: string | undefined, location: string): string | undefined {
+/**
+ * The event's city, or null when it does not have one.
+ *
+ * The fallback to the requested location is there for sources that publish no
+ * location at all. It must not apply to an online event: a virtual DevFest has
+ * no city, and filling in the chapter's city because that is what we asked for
+ * puts a place on an event that has none — which then renders as "Venue:
+ * Kolkata" on a session nobody can attend in Kolkata.
+ *
+ * This is not hypothetical. Every adapter that maps an online event deliberately
+ * leaves `city` undefined, and this function was handing it straight back.
+ */
+function cleanCity(
+  raw: string | undefined,
+  location: string,
+  isOnline: boolean
+): string | undefined {
   if (raw && raw.trim()) return raw.trim();
+  if (isOnline) return undefined;
   return location.split(",")[0].trim().replace(/\b(city|india)\b/gi, "").trim() || undefined;
 }

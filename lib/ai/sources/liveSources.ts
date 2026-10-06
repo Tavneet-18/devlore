@@ -1,4 +1,5 @@
 import type { DiscoverySource, RawEvent } from "../types";
+import { USER_AGENT } from "./http";
 
 /**
  * Live event sources — free, no API keys.
@@ -10,11 +11,18 @@ import type { DiscoverySource, RawEvent } from "../types";
  *
  * Active when DISCOVERY_MODE=live. Swap is one line in lib/ai/index.ts.
  *
- * Source coverage:
- *   devpost — working (public API, real upcoming hackathons)
- *   unstop  — working (public search API)
- *   gdg     — best effort (community API is unstable)
+ * Source coverage, as measured rather than as hoped:
+ *   devpost — working; the largest single source (17 of 49 events)
+ *   unstop  — wired but yielding nothing: the endpoint returns an empty array
+ *             for every parameter combination tried. See the note on unstopFetch.
+ *   gdg     — working, but thin: 7 upcoming events across 6 Indian chapters,
+ *            all virtual. Fixes the type mix, not the volume.
  *   meetup  — disabled, needs a MEETUP_TOKEN for its GraphQL endpoint
+ *
+ * The corollary is that the index is almost entirely hackathons, because every
+ * source that actually returns rows only lists hackathons. GDG is the one
+ * adapter here that yields a different event type. Widening the mix means
+ * finding in-person tech-event sources, not tuning these.
  */
 
 type ExtractFn = (city: string) => Promise<RawEvent[]>;
@@ -248,6 +256,19 @@ const devpostFetch: ExtractFn = async (city) => {
 };
 
 // --- Unstop (public JSON search) ---
+//
+// Currently yields NOTHING, and the header comment above used to claim
+// otherwise. /api/public/opportunity/search-result answers HTTP 200 with valid
+// JSON containing an empty array for every parameter combination tried
+// (oppstatus present and absent, perPage 12 and 25, oppstatus=recent), so the
+// adapter is wired correctly against an endpoint that no longer serves results
+// without a session. The site renders the same data client-side, so recovering
+// it means finding the request the page actually makes rather than guessing at
+// parameters.
+//
+// Left wired rather than deleted: the endpoint may recover, and a source that
+// returns [] costs one request. What is NOT left is the invented description it
+// used to fall back to.
 const unstopFetch: ExtractFn = async (city) => {
   try {
     const url =
@@ -278,18 +299,25 @@ const unstopFetch: ExtractFn = async (city) => {
 
       const locationText = String(o.location ?? o.city ?? "");
       const isOnline = /online|virtual|remote|pan-?india/i.test(locationText);
-      const isStudentTrack = /student|beginner|fresher|undergraduate|college/i.test(
-        `${regn.eligible ?? ""} ${title}`
-      );
+      // Eligibility goes into `details` rather than only into prose, so the
+      // detail page and quick-look render it as a structured row ("Who can
+      // join") instead of burying it in a sentence. Only set when the platform
+      // actually states it.
+      const eligibility = String(regn.eligible ?? "").trim();
 
       out.push({
         source: "unstop",
+        sourceId: o.seoUrl ? String(o.seoUrl) : undefined,
         title,
+        // The organiser's own text. The previous fallback invented "Apply and
+        // form a team to compete" for any record with a blank description —
+        // asserting that a listing is a team competition when the response may
+        // describe a workshop, a quiz or a fellowship. Eligibility is used
+        // because it is a fact the payload carries, and nothing else is added.
         description:
           stripHtml(String(o.description ?? o.des ?? "")) ||
-          `${title} — open for registration on Unstop.${
-            isStudentTrack ? " Open to students, freshers and beginners." : ""
-          } Apply and form a team to compete.`,
+          [eligibility ? `Eligibility: ${eligibility}.` : ""].filter(Boolean).join(" "),
+        details: eligibility ? { eligibility: eligibility.slice(0, 400) } : undefined,
         date: start,
         endDate: end ?? undefined,
         venue: locationText || undefined,
@@ -299,6 +327,9 @@ const unstopFetch: ExtractFn = async (city) => {
           (o.organisation as { name?: string } | undefined)?.name ?? o.organisationName ?? "Unstop"
         ),
         link: String(o.seoUrl ? `https://unstop.com/${o.seoUrl}` : "https://unstop.com/hackathons"),
+        // Justified by the request itself: the query pins
+        // `opportunity=hackathon`, so every row this adapter can see is one.
+        // The parameter, not the platform, is what decides the type.
         eventType: "hackathon",
       });
     }
@@ -316,44 +347,152 @@ const unstopFetch: ExtractFn = async (city) => {
 const meetupFetch: ExtractFn = async () => [];
 
 // --- GDG Community chapters ---
-const gdgFetch: ExtractFn = async (city) => {
+//
+// The previous adapter called /api/search?query=<city>, which is a chapter
+// *directory* search rather than an events endpoint — it answers HTTP 400 for
+// every parameter spelling, and even when it answers, a chapter record carries
+// no event date, so every row was dropped by the date guard. It then papered
+// over the empty description with an invented sentence ("Talks, demos and
+// networking"), which is exactly the fabrication this site must never publish.
+// Both problems are fixed by reading the real endpoint below.
+//
+// gdg.community.dev runs on Bevy, which exposes each chapter's events as JSON at
+// /api/event_slim/for_chapter/<id>/. The id is not documented anywhere, but it
+// appears in the chapter's own page HTML, so it is resolved at runtime and
+// cached rather than hardcoded — if Google renumbers a chapter the adapter
+// follows, instead of silently returning nothing forever.
+//
+// Measured yield, because it is thin and worth being honest about: across
+// Bangalore, Hyderabad, Chennai, Pune and Kolkata, 426 events are published in
+// total but only SEVEN are still upcoming, and all seven are virtual. Most
+// Indian GDG chapters now run their sessions online, and the platform keeps
+// years of archive. This source fixes the "no non-hackathon types" gap rather
+// than adding volume, and it is documented as such so nobody later assumes the
+// site has broad chapter coverage.
+
+/**
+ * City -> chapter slug.
+ *
+ * Not every city has a chapter here, and the slugs are not derivable from the
+ * city name: Delhi is "gdg-new-delhi", and Mumbai has no chapter on this
+ * platform at all (checked against every plausible slug). A city absent here is
+ * skipped, not guessed at.
+ */
+const GDG_CHAPTERS: Record<string, string> = {
+  bangalore: "gdg-bangalore",
+  delhi: "gdg-new-delhi",
+  hyderabad: "gdg-hyderabad",
+  pune: "gdg-pune",
+  chennai: "gdg-chennai",
+  kolkata: "gdg-kolkata",
+};
+
+/** slug -> chapter id, or null once we know the page does not exist. */
+const gdgChapterIds = new Map<string, string | null>();
+
+async function resolveGdgChapterId(slug: string): Promise<string | null> {
+  const cached = gdgChapterIds.get(slug);
+  if (cached !== undefined) return cached;
+
+  let id: string | null = null;
   try {
-    const url = `https://gdg.community.dev/api/search?query=${encodeURIComponent(city)}`;
-    const res = await fetch(url, {
-      signal: AbortSignal.timeout(10000),
-      headers: { Accept: "application/json" },
+    const res = await fetch(`https://gdg.community.dev/${slug}/`, {
+      signal: AbortSignal.timeout(12000),
+      headers: { Accept: "text/html", "User-Agent": USER_AGENT },
     });
-    if (!res.ok) throw new Error(String(res.status));
+    if (res.ok) {
+      const html = await res.text();
+      id = html.match(/for_chapter\/(\d+)/)?.[1] ?? null;
+    }
+  } catch {
+    id = null;
+  }
+
+  // Cached either way, including the failure: a chapter page that 404s today
+  // will 404 tomorrow, and re-requesting it once per city per run is a request
+  // spent to learn nothing.
+  gdgChapterIds.set(slug, id);
+  return id;
+}
+
+const gdgFetch: ExtractFn = async (city) => {
+  const slug = GDG_CHAPTERS[city.toLowerCase().trim()];
+  if (!slug) return [];
+
+  try {
+    const chapterId = await resolveGdgChapterId(slug);
+    if (!chapterId) return [];
+
+    const url =
+      `https://gdg.community.dev/api/event_slim/for_chapter/${chapterId}/` +
+      `?page_size=100&order=start_date&page=1`;
+    const res = await fetch(url, {
+      signal: AbortSignal.timeout(12000),
+      headers: { Accept: "application/json", "User-Agent": USER_AGENT },
+    });
+    if (!res.ok) return [];
 
     const data = await res.json();
-    const items = (data.results ?? data.data ?? []) as Record<string, unknown>[];
+    const items = (data?.results ?? []) as Record<string, unknown>[];
+    const chapterTitle = String(items[0]?.chapter_title ?? "").trim();
 
     const out: RawEvent[] = [];
-    for (const g of items) {
-      const title = String(g.title ?? "").trim();
+    for (const e of items) {
+      if (e.is_hidden) continue;
+
+      const title = String(e.title ?? "").trim();
       if (!title) continue;
 
-      const date = parseEventDate(String(g.start_date ?? g.date ?? ""));
+      const date = parseEventDate(String(e.start_date ?? ""));
+      // Relevance is judged on the session's own start. A chapter that published
+      // last year's archive is not a source of upcoming events, and filtering
+      // here is what keeps 400-odd past rows out of the database.
       if (!date || !isStillRelevant(date)) continue;
 
-      const location = String(g.location ?? "");
+      const end = parseEventDate(String(e.end_date ?? ""));
+      // Bevy's end_date is when the session finishes, never a registration
+      // deadline. Saying so explicitly matters: without it the site labels a
+      // finish date as "Closes", which is the distinction the whole deadline
+      // model rests on.
+      const endDate = end && new Date(end) > new Date(date) ? end : undefined;
+
+      const isOnline = Boolean(e.is_virtual_event);
+      const link = String(e.static_url ?? "").trim() || undefined;
+      const image = normaliseImage(
+        String(
+          (e.picture as { url?: string } | null)?.url ?? e.cropped_picture_url ?? ""
+        )
+      );
 
       out.push({
         source: "gdg",
+        // static_url is chapter-stable, which is what the upsert keys on. The
+        // listing URL is not: platforms rewrite those.
+        sourceId: link ? `${chapterId}:${link}` : undefined,
         title,
-        description:
-          stripHtml(String(g.description ?? "")) ||
-          `Google Developer Group community session in ${city}. Talks, demos and networking.`,
+        // The organiser's own words, and nothing else. The previous adapter
+        // invented "Talks, demos and networking" when this was empty, which
+        // asserted content about a session it had never read — a GDG event can
+        // be a workshop, a study jam or a conference. An empty description is
+        // the honest value and every other source already produces one.
+        description: stripHtml(String(e.description_short ?? e.description ?? "")).slice(0, 600),
         date,
-        venue: location || undefined,
-        city,
-        isOnline: /online|virtual/i.test(location),
-        organizer: String((g.chapter as { title?: string } | undefined)?.title ?? "GDG Community"),
-        link: String(g.url ?? "https://gdg.community.dev/"),
+        endDate,
+        deadlineKind: "event-end",
+        // A virtual session has no venue, and claiming the chapter's city as one
+        // would put a location on an event with no physical location.
+        venue: isOnline ? undefined : chapterTitle || undefined,
+        city: isOnline ? undefined : city,
+        isOnline,
+        // The chapter, named by the platform. Not "GDG Community", which is a
+        // programme rather than an organiser.
+        organizer: chapterTitle || "GDG Community",
+        link,
+        imageUrl: image,
         eventType: "meetup",
       });
     }
-    return out.slice(0, 6);
+    return out;
   } catch {
     return [];
   }
