@@ -702,6 +702,137 @@ async function checkQueryNarrowing() {
   }
 }
 
+/**
+ * Keyboard reachability and accessible names.
+ *
+ * Every assertion here corresponds to a defect that passed typecheck, lint,
+ * build and the 1440px guard, because none of them is a visual regression:
+ * they only appear when you cannot see the page or cannot point at it.
+ *
+ * Two of these are measured with real key presses rather than by inspecting
+ * attributes, because the attribute being present is not the same as the
+ * behaviour working. `page.focus()` on the body does NOT rewind the sequential
+ * focus navigation starting point — Tab continues from wherever focus was, so
+ * an earlier draft concluded the skip link was not first in the tab order when
+ * in fact the test had not rewound. Reloading is what rewinds it.
+ */
+async function checkKeyboardAccess() {
+  console.log(`\nkeyboard access @ 1440`);
+  const page = await browser.newPage();
+  await page.setViewport({ width: 1440, height: 900 });
+
+  try {
+    await page.goto(`${origin}/`, { waitUntil: "networkidle2", timeout: 60000 });
+    await page.waitForSelector('a[href^="/events/"]', { timeout: 30000 });
+    await new Promise((r) => setTimeout(r, 800));
+
+    // The axis: 2880px wide, scrollbar hidden, previously reachable only by
+    // dragging with a mouse.
+    const axis = await page.evaluate(() => {
+      const el = document.querySelector('[role="region"]');
+      return el
+        ? {
+            tabIndex: el.getAttribute("tabindex"),
+            name: el.getAttribute("aria-label"),
+            scrolls: el.scrollWidth > el.clientWidth,
+          }
+        : null;
+    });
+    if (axis && axis.tabIndex === "0") ok("axis is in the tab order (tabindex=0)");
+    else fail(`axis is not focusable (role=region ${axis ? `tabindex=${axis.tabIndex}` : "absent"})`);
+
+    if (axis?.name) ok(`axis has an accessible name: "${axis.name}"`);
+    else fail("the axis region has no accessible name, so its focus announces nothing useful");
+
+    if (axis?.scrolls) {
+      const before = await page.evaluate(
+        () => document.querySelector('[role="region"]').scrollLeft
+      );
+      await page.focus('[role="region"]');
+      for (let i = 0; i < 8; i++) await page.keyboard.press("ArrowRight");
+      await new Promise((r) => setTimeout(r, 300));
+      const after = await page.evaluate(
+        () => document.querySelector('[role="region"]').scrollLeft
+      );
+      if (after > before) ok(`arrow keys scroll the axis (${before} -> ${after}px)`);
+      else fail(`focusing the axis and pressing ArrowRight did not scroll it (${before} -> ${after})`);
+    } else {
+      fail("the axis region does not overflow, so nothing to scroll");
+    }
+
+    // Skip link. Reload first: that is what rewinds the tab sequence.
+    await page.goto(`${origin}/`, { waitUntil: "networkidle2", timeout: 60000 });
+    await page.waitForSelector('a[href^="/events/"]', { timeout: 30000 });
+    await new Promise((r) => setTimeout(r, 600));
+    await page.keyboard.press("Tab");
+    const first = await page.evaluate(() => {
+      const el = document.activeElement;
+      const b = el?.getBoundingClientRect();
+      return {
+        text: (el?.textContent ?? "").trim(),
+        visible: !!b && b.width > 20 && b.height > 10,
+      };
+    });
+    if (/skip to content/i.test(first.text)) ok("first Tab reaches the skip link");
+    else fail(`first Tab reached "${first.text}", not the skip link`);
+    if (first.visible) ok("skip link becomes visible when focused");
+    else fail("skip link is still visually hidden while focused — focus:not-sr-only is not applying");
+
+    await page.keyboard.press("Enter");
+    await new Promise((r) => setTimeout(r, 400));
+    const landed = await page.evaluate(() => ({
+      id: document.activeElement?.id,
+      tag: document.activeElement?.tagName,
+    }));
+    if (landed.id === "main" || landed.tag === "MAIN")
+      ok("activating it moves focus into <main>");
+    else
+      fail(`focus after the skip link is ${landed.tag}#${landed.id}, not <main> — it scrolls without moving focus`);
+
+    // Names and state, read from the accessibility tree rather than the DOM.
+    const a11y = await page.evaluate(() => {
+      const input = document.querySelector('input[type="search"]');
+      const buttons = [...document.querySelectorAll("button")];
+      const pressed = buttons.filter((b) => b.hasAttribute("aria-pressed"));
+      const live = document.querySelector('[aria-live], [role="status"]');
+      return {
+        searchName: input?.getAttribute("aria-label") ?? null,
+        searchHasLabelEl: !!(input?.id && document.querySelector(`label[for="${input.id}"]`)),
+        buttons: buttons.length,
+        pressed: pressed.length,
+        pressedTrue: pressed.filter((b) => b.getAttribute("aria-pressed") === "true").length,
+        liveText: live?.textContent?.trim().slice(0, 40) ?? null,
+      };
+    });
+    if (a11y.searchName || a11y.searchHasLabelEl)
+      ok(`search input has an accessible name: "${a11y.searchName ?? "<label for>"}"`);
+    else fail("search input has no accessible name — a placeholder is not one");
+
+    if (a11y.pressed > 0) ok(`${a11y.pressed} filter buttons expose aria-pressed (${a11y.pressedTrue} selected)`);
+    else fail("no filter button exposes its selected state — it is carried by colour alone");
+
+    if (a11y.liveText) ok(`result count is announced live: "${a11y.liveText}"`);
+    else fail("no live region announces the result count or load errors");
+
+    // The 404 must be the site's, with its chrome, not Next's default page.
+    await page.goto(`${origin}/events/definitely-not-a-real-id`, {
+      waitUntil: "networkidle2",
+      timeout: 60000,
+    });
+    await new Promise((r) => setTimeout(r, 400));
+    const nf = await page.evaluate(() => ({
+      hasNav: !!document.querySelector("header nav"),
+      isNextDefault: /this page could not be found|application error/i.test(document.body.innerText),
+    }));
+    if (nf.hasNav) ok("a dead event link renders the site's own 404, with navigation");
+    else fail("a dead event link renders a bare page with no site chrome");
+    if (!nf.isNextDefault) ok("404 is not Next's default page");
+    else fail("404 is still Next's built-in page");
+  } finally {
+    await page.close();
+  }
+}
+
 try {
   // The front page. The axis and the index are both client-rendered here.
   const home = await check("/", {
@@ -720,6 +851,8 @@ try {
   await checkHonestClaims();
 
   await checkQueryNarrowing();
+
+  await checkKeyboardAccess();
 
   // /list is the submit form, not an index — it carries the editable fields.
   await check("/list", {
