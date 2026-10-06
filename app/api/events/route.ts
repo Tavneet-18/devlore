@@ -103,8 +103,16 @@ export async function GET(request: NextRequest) {
   let refsByEvent = new Map<string, { source: string; link: string | null }[]>();
   try {
     const caps = await getSchemaCapabilities();
-    if (caps.ingestRun) {
+    // Scoped to the events actually returned. This query had no `where` clause,
+    // so it read the entire EventSourceRef table on every request to the
+    // hottest public route in order to annotate 45 rows — and that table only
+    // grows, because ingest appends a ref per source per event on every run
+    // and nothing ever prunes it. eventId is indexed, so the scoped form costs
+    // an index scan over a few dozen keys instead of a full scan.
+    const ids = asSelected(events).map((e) => e.id);
+    if (caps.ingestRun && ids.length > 0) {
       const refs = await db.eventSourceRef.findMany({
+        where: { eventId: { in: ids } },
         select: { eventId: true, source: true, link: true },
       });
       const m = new Map<string, { source: string; link: string | null }[]>();

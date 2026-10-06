@@ -29,6 +29,16 @@ import { getViewerId } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * How many candidates the similar-events strip scores.
+ *
+ * Bounded on purpose. The strip shows three, so this only has to be large
+ * enough that three plausible matches usually survive the `score > 0` filter.
+ * Sixty is comfortably more than the strip can use while keeping the query a
+ * bounded index scan rather than a table read.
+ */
+const SIMILAR_POOL = 60;
+
 async function loadEvent(id: string) {
   const event = await db.event.findUnique({ where: { id }, select: await eventSelect() });
   if (!event) return null;
@@ -87,11 +97,35 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
 
   const viewerId = await getViewerId();
   const select = await eventSelect();
-  const [bookmark, allApproved, refs] = await Promise.all([
+  const [bookmark, similarPool, refs] = await Promise.all([
     viewerId ? db.bookmark.findUnique({ where: { viewerId_eventId: { viewerId, eventId: id } } }) : null,
+    // Candidates for the "similar" strip, narrowed in SQL.
+    //
+    // This used to read every APPROVED event on the site on every detail-page
+    // render and pick 3 out of them in JavaScript. That is a full table scan
+    // plus a full hydration of every row — including rawPayload — to fill a
+    // three-item strip, and it got linearly worse as the index grew.
+    //
+    // Scoring reads five fields: shared tags, eventType, beginnerFriendly,
+    // isOnline and city. Only eventType and city are indexable (tags is a text
+    // column holding a JSON array, so no btree and no GIN), so the query
+    // narrows on the three it can and `mode` scoring still happens in JS over a
+    // bounded pool. The branches are OR'd rather than AND'd so a page never
+    // ends up with an empty strip just because its own type is rare — that is
+    // the failure a strict same-type filter would have.
     db.event.findMany({
-      where: { status: "APPROVED" },
+      where: {
+        status: "APPROVED",
+        id: { not: id },
+        OR: [
+          { eventType: event.eventType },
+          { isOnline: event.isOnline },
+          ...(event.city ? [{ city: event.city }] : []),
+        ],
+      },
+      // Soonest first, so the pool is the events a reader could still act on.
       orderBy: { date: "asc" },
+      take: SIMILAR_POOL,
       select,
     }),
     // Tolerates the pre-migration schema, where this table does not exist.
@@ -101,7 +135,7 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
   ]);
 
   const similarRows = asSelected(
-    similarEvents(event, asSelected(allApproved), 3)
+    similarEvents(event, asSelected(similarPool), 3)
   ).map((e) => toEventDTO(e));
 
   const details = parseDetails(event.details);

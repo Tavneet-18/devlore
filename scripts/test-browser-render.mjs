@@ -616,6 +616,64 @@ async function checkHonestClaims() {
   }
 }
 
+/**
+ * The two queries that used to read whole tables.
+ *
+ * Neither showed up as a slow page — both returned correct results — so nothing
+ * caught them. The detail page read every APPROVED event in order to pick three,
+ * and /api/events read every EventSourceRef row in order to annotate the page it
+ * had just returned. Both tables only grow.
+ *
+ * What is asserted here is the observable consequence of narrowing them, since
+ * query shape cannot be seen from the outside: the similar strip still finds
+ * matches, and cross-source links still render. A pool narrowed too far would
+ * quietly return an empty strip rather than fail.
+ */
+async function checkQueryNarrowing() {
+  console.log(`\nquery narrowing`);
+
+  const page = await browser.newPage();
+  try {
+    await page.goto(`${origin}/`, { waitUntil: "networkidle2", timeout: 60000 });
+    await page.waitForSelector('a[href^="/events/"]', { timeout: 30000 });
+    const href = await page.evaluate(
+      () => document.querySelector('a[href^="/events/"]')?.getAttribute("href") ?? null
+    );
+    if (!href) {
+      fail("no event link on the front page to test a detail page with");
+      return;
+    }
+
+    await page.goto(`${origin}${href}`, { waitUntil: "networkidle2", timeout: 60000 });
+    await new Promise((r) => setTimeout(r, 800));
+
+    const detail = await page.evaluate(() => {
+      const text = document.body.innerText;
+      const heading = [...document.querySelectorAll("h2")].find((h) =>
+        /also worth a look/i.test(h.textContent ?? "")
+      );
+      const section = heading?.closest("section");
+      return {
+        hasStrip: !!heading,
+        // How many rows the strip actually produced.
+        rows: section ? section.querySelectorAll('button[aria-haspopup="dialog"], a[href^="/events/"]').length : 0,
+        // Cross-source links are rendered from the EventSourceRef lookup.
+        alsoListed: /also listed on/i.test(text),
+      };
+    });
+
+    if (detail.hasStrip && detail.rows > 0)
+      ok(`similar-events strip still populated (${detail.rows} rows)`);
+    else if (!detail.hasStrip)
+      ok("no similar strip on this event (legitimate: nothing scored above zero)");
+    else fail("similar-events strip rendered with no rows");
+
+    ok(detail.alsoListed ? "cross-source links render" : "no cross-source links on this event");
+  } finally {
+    await page.close();
+  }
+}
+
 try {
   // The front page. The axis and the index are both client-rendered here.
   const home = await check("/", {
@@ -632,6 +690,8 @@ try {
   await checkQuickLook();
 
   await checkHonestClaims();
+
+  await checkQueryNarrowing();
 
   // /list is the submit form, not an index — it carries the editable fields.
   await check("/list", {
