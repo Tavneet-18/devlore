@@ -120,7 +120,7 @@ export function HomeClient({ now }: { now: string }) {
           the live list, and the sentence belongs to that half of the page. */}
       <p className="mt-5 text-[13px] leading-relaxed text-faint sm:mt-6">
         <span className="text-muted">Search</span> by title, city or tag.{" "}
-        <span className="text-muted">Narrow</span> by city, format, and how soon registration closes.
+        <span className="text-muted">Narrow</span> by city, format, and how soon deadlines close.
       </p>
 
       <EventExplorer city={city} onCity={setCity} now={now} />

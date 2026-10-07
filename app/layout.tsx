@@ -48,7 +48,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Devlore — hackathons & tech events",
   description:
-    "Find hackathons and tech events on one date axis, ordered by the registration deadline that closes soonest — so nothing worth applying to slips past.",
+    "Find hackathons and tech events on one date axis, ordered by the deadlines closing soonest — so nothing worth applying to slips past.",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

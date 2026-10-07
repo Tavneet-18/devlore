@@ -19,8 +19,8 @@ export function Footer() {
           <div className="max-w-sm">
             <p className="font-serif text-[19px] leading-none text-ink">Devlore</p>
             <p className="mt-3 text-[13px] leading-relaxed text-muted">
-              Hackathons and tech events on one date axis, ordered by how soon each registration
-              closes — so the deadlines worth acting on are the ones in front of you.
+              Hackathons and tech events on one date axis, ordered by their published deadlines
+              — so the deadlines worth acting on are the ones in front of you.
             </p>
           </div>
 
