@@ -32,6 +32,20 @@ const NAV = [
   { href: "/list", label: "Submit" },
 ];
 
+/**
+ * Nav labels are 12px, not 11px.
+ *
+ * `globals.css` raises 9px and 10px to 11px on phones, because at 294 occurrences
+ * of small type, sub-11px is unreadable at arm's length. 11px itself was never
+ * covered — and these are the only 11px *interactive* text on the site, so they
+ * were the worst case the floor missed. Adding 11px to the global floor would
+ * have reached event rows and the time axis, which belong to the other branch,
+ * so the fix is local to the element that has the problem.
+ *
+ * One pixel of type height changes nothing about the layout: the bar is
+ * `min-h-16` and the links have 44px tap overlays, so 360px and above are
+ * unaffected and 320px still wraps exactly where it did.
+ */
 export function Nameplate({ dateLine }: { dateLine: string }) {
   const pathname = usePathname();
 
@@ -78,7 +92,7 @@ export function Nameplate({ dateLine }: { dateLine: string }) {
                 key={item.href}
                 href={item.href}
                 onClick={onDiscover}
-                className="tap-target border-b border-transparent pb-0.5 text-[11px] uppercase tracking-[0.12em] text-faint transition-colors duration-200 hover:border-primary hover:text-ink"
+                className="tap-target border-b border-transparent pb-0.5 text-[12px] uppercase tracking-[0.12em] text-faint transition-colors duration-200 hover:border-primary hover:text-ink"
               >
                 {item.label}
               </Link>
@@ -86,7 +100,7 @@ export function Nameplate({ dateLine }: { dateLine: string }) {
               <Link
                 key={item.href}
                 href={item.href}
-                className="tap-target border-b border-transparent pb-0.5 text-[11px] uppercase tracking-[0.12em] text-faint transition-colors duration-200 hover:border-primary hover:text-ink"
+                className="tap-target border-b border-transparent pb-0.5 text-[12px] uppercase tracking-[0.12em] text-faint transition-colors duration-200 hover:border-primary hover:text-ink"
               >
                 {item.label}
               </Link>

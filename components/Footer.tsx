@@ -47,11 +47,25 @@ export function Footer() {
             that carries the only warning on the site: that deadlines are
             republished and should be confirmed with the organiser. The warning
             is the least skimmable text here and was set in the least legible
-            size. The label keeps 11px, because "Sources:" is a label; the
-            sentence gets 12px on a phone and 13px above sm, and a measure
-            capped at `2xl` so it is not set across 1152px of page width. */}
+            size. The label has since moved to 12px too, so the label and the
+            sentence it introduces are no longer set two pixels apart, and the
+            sentence gets 13px above sm and a measure capped at `2xl` rather
+            than running across 1152px of page width.
+
+            Only the LABEL is uppercase, not the list. Every platform name sits
+            in the same line — Devpost, Unstop, Google Developer Groups,
+            Hack2Skill and the rest, plus "Submitted directly" — which is four
+            wrapped lines at 375px. Four lines of 12px uppercase at 0.12em
+            tracking is the least readable text on the page, and uppercase earns
+            its keep on a two-word label, not on a list of proper nouns. So
+            "Sources:" keeps the small-caps treatment and the names drop to
+            sentence case, which is what the design already did for the caveat
+            below it. */}
         <div className="mt-10 border-t border-line pt-6 text-faint">
-          <p className="text-[11px] uppercase tracking-[0.12em]">Sources: {SOURCES}</p>
+          <p className="text-[12px] uppercase tracking-[0.12em]">
+            Sources:{" "}
+            <span className="normal-case tracking-normal">{SOURCES}</span>
+          </p>
           <p className="mt-3 max-w-2xl text-[12px] leading-relaxed sm:text-[13px]">
             Listings should always be verified directly with the organiser before travel or
             payment. Deadlines are republished from each source and may change without notice.

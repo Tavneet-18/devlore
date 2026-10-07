@@ -73,20 +73,26 @@ export function HomeClient({ now }: { now: string }) {
           deadlines. So the explanation sits directly under the headline, in
           the sentence a reader actually needs.
 
-          It deliberately does not open by naming the categories — the kicker
-          one line above already does, and an earlier draft began "Hackathons
-          and tech events gathered from…", which read the same sentence twice
-          within three lines and pushed the paragraph to five lines on a phone.
-          What the kicker cannot say is where the dates come from and what the
-          ordering is for, so this says those two things and stops.
+          It makes a claim about the DATES rather than about the sources, and
+          that is deliberate. An earlier draft opened "Collected from the
+          platforms that publish their own dates", which reads as exhaustive and
+          is not — the footer's source list ends "· Submitted directly", and
+          organisers do submit. Claiming provenance of the dates instead is
+          airtight (every date here is republished from the listing, never
+          estimated — the footer's disclaimer says so and the pipeline does it)
+          and it is the claim that actually earns trust, since a deadline index
+          is worthless if the deadlines are guesses.
+
+          It also gets shorter, 145 characters to 129, which is one line back on
+          a 375px phone.
 
           `text-pretty` rather than `text-balance`: balanced lines would stretch
           the first line to fill the measure and leave the second short, which
           in a ragged-right paragraph is the wrong trade. It is 15px on a
           phone, where this is read at arm's length, and 17px above sm. */}
       <p className="mt-6 max-w-[54ch] text-pretty text-[15px] leading-relaxed text-muted sm:mt-8 sm:text-[17px]">
-        Collected from the platforms that publish their own dates, then laid along one axis so the
-        deadlines closing soonest are the first thing you see.
+        Dates here are the ones each listing publishes, never estimates — laid along one axis so
+        the deadlines closing soonest sit closest to today.
       </p>
 
       <div className="mt-8 border-t border-line sm:mt-12" />
@@ -97,10 +103,22 @@ export function HomeClient({ now }: { now: string }) {
           that they can narrow anything down. One sentence, immediately above
           them, naming what each control actually does.
 
+          13px at every width, not 12px on a phone as it was: this sentence
+          describes the filter row, and at 12px in `text-faint` it was set
+          smaller and lighter than the thing it pointed at — a caption that
+          announces a control and then recedes from it. At 13px it matches the
+          filter row it introduces.
+
+          `text-faint` on the paragraph is load-bearing, not decoration. The two
+          verbs are `text-muted`, so the paragraph has to sit below them or the
+          emphasis inverts; without it the line inherits `--color-ink` from
+          `body` at 18.32:1 and the emphasised words turn out dimmer than the
+          words around them.
+
           It sits between the rule and the controls rather than above the rule
           because the rule is the top edge of the index — everything below it is
           the live list, and the sentence belongs to that half of the page. */}
-      <p className="mt-5 text-[12px] leading-relaxed text-faint sm:mt-6 sm:text-[13px]">
+      <p className="mt-5 text-[13px] leading-relaxed text-faint sm:mt-6">
         <span className="text-muted">Search</span> by title, city or tag.{" "}
         <span className="text-muted">Narrow</span> by city, format, and how soon registration closes.
       </p>
