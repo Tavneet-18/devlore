@@ -90,6 +90,7 @@ export function EventQuickLook({
   const glance = event
     ? buildGlance({
         title: event.title,
+        source: event.source,
         date: event.date,
         endDate: event.endDate,
         deadlineKind: event.deadlineKind,

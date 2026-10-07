@@ -33,7 +33,8 @@ export interface EventDTO {
   source: string;
   /**
    * Which date the countdown measures: "registration" when the platform
-   * publishes a real registration deadline, "event-end" when it does not.
+   * publishes a real registration deadline, "submission" for submissions,
+   * and "event-end" when only event dates are available.
    * The UI must not call a finish date a closing date.
    */
   deadlineKind: string | null;
@@ -78,7 +79,9 @@ export function toEventDTO(
     tags: parseTags(event),
     beginnerFriendly: event.beginnerFriendly,
     source: event.source,
-    deadlineKind: event.deadlineKind ?? null,
+    deadlineKind: event.source === "devpost" ? "submission"
+      : event.source === "hack2skill" && event.deadlineKind === "event-end" ? "submission"
+      : event.deadlineKind ?? null,
     alsoOn: sourceRefs ?? [],
     brief: event.brief ?? null,
     whoCanJoin: event.whoCanJoin ?? null,
@@ -103,49 +106,37 @@ export type EventQuery = {
   q?: string;
 };
 
-export function buildEventWhere(input: EventQuery): Prisma.EventWhereInput {
-  const now = new Date();
-
-  // An event is still relevant if either its start OR its end is in the
-  // future. Multi-day events (and hackathons with an open submission window)
-  // often have a start date in the past while registration is still open.
-  const stillRelevant: Prisma.EventWhereInput = {
-    OR: [{ date: { gte: now } }, { endDate: { gte: now } }],
+export function actionableEventWhere(now = new Date()): Prisma.EventWhereInput {
+  return {
+    OR: [
+      { endDate: { gt: now } },
+      { endDate: null, date: { gt: now } },
+    ],
   };
+}
 
-  // Local array because Prisma types AND as a union of object | array.
-  const and: Prisma.EventWhereInput[] = [stillRelevant];
-
+export function buildEventWhere(input: EventQuery, now = new Date()): Prisma.EventWhereInput {
+  const and: Prisma.EventWhereInput[] = [actionableEventWhere(now)];
   if (input.city) {
-    // Online events are always relevant to a city search.
-    and.push({ OR: [{ city: { contains: input.city } }, { isOnline: true }] });
+    and.push({ OR: [{ city: { contains: input.city, mode: "insensitive" } }, { isOnline: true }] });
   }
-
   if (input.q) {
-    and.push({ title: { contains: input.q } });
+    and.push({ OR: [
+      { title: { contains: input.q, mode: "insensitive" } },
+      { summary: { contains: input.q, mode: "insensitive" } },
+      { city: { contains: input.q, mode: "insensitive" } },
+      { tags: { contains: input.q, mode: "insensitive" } },
+    ] });
   }
-
-  // Timeframe selects events overlapping the coming window.
-  if (input.timeframe === "week") {
-    and.push({ date: { lte: addDays(now, 7) } });
-  } else if (input.timeframe === "month") {
-    and.push({ date: { lte: addDays(now, 30) } });
+  if (input.timeframe === "week" || input.timeframe === "month") {
+    const limit = new Date(now.getTime() + (input.timeframe === "week" ? 7 : 30) * 86400000);
+    and.push({ OR: [{ endDate: { lte: limit } }, { endDate: null, date: { lte: limit } }] });
   }
-
-  const where: Prisma.EventWhereInput = {
-    status: "APPROVED",
-    AND: and,
-  };
-
-  if (input.type && input.type !== "All" && isEventType(input.type)) {
-    where.eventType = input.type;
-  }
-
+  const where: Prisma.EventWhereInput = { status: "APPROVED", AND: and };
+  if (input.type && isEventType(input.type)) where.eventType = input.type;
   if (input.mode === "online") where.isOnline = true;
   else if (input.mode === "offline") where.isOnline = false;
-
   if (input.beginner) where.beginnerFriendly = true;
-
   return where;
 }
 
@@ -228,10 +219,4 @@ export async function queryEvents(
     db.event.count({ where }),
   ]);
   return { events: asSelected(events), count };
-}
-
-function addDays(date: Date, days: number): Date {
-  const d = new Date(date);
-  d.setDate(d.getDate() + days);
-  return d;
 }

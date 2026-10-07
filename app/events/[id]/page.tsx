@@ -2,12 +2,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { db } from "@/lib/db";
-import { parseTags, toEventDTO, eventSelect, asSelected } from "@/lib/events";
+import { parseTags, toEventDTO, eventSelect, asSelected, actionableEventWhere } from "@/lib/events";
 import { similarEvents } from "@/lib/recommendations";
 import {
   countdown,
-  eventPhase,
-  eventTiming,
   formatDateTime,
   DISPLAY_TZ_LABEL,
 } from "@/lib/format";
@@ -26,6 +24,7 @@ import { BookmarkButton } from "@/components/BookmarkButton";
 import { IndexRow } from "@/components/IndexRow";
 import { EventPoster, accentFor, accentTextFor } from "@/components/EventCard";
 import { getViewerId } from "@/lib/session";
+import { eventDates, eventStatus, isActionable } from "@/lib/event-dates";
 
 export const dynamic = "force-dynamic";
 
@@ -57,6 +56,7 @@ export async function generateMetadata({
   const details = parseDetails(event.details);
   const summary = metaDescription({
     title: event.title,
+    source: event.source,
     date: event.date.toISOString(),
     endDate: event.endDate?.toISOString() ?? null,
     deadlineKind: event.deadlineKind,
@@ -117,6 +117,7 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
       where: {
         status: "APPROVED",
         id: { not: id },
+        AND: [actionableEventWhere()],
         OR: [
           { eventType: event.eventType },
           { isOnline: event.isOnline },
@@ -142,8 +143,10 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
   const whoCanJoin = event.whoCanJoin ?? whoCanJoinFrom(details);
   const dto = toEventDTO(event, new Set(bookmark ? [id] : []), refs);
 
-  const timing = eventTiming(dto.date, dto.endDate);
-  const target = dto.endDate ?? dto.date;
+  const timing = eventStatus(dto);
+  const active = isActionable(dto);
+  const dates = eventDates(dto);
+  const target = dates.deadline ?? dates.end ?? dates.start;
   const typeLabel = EVENT_TYPE_LABELS[dto.eventType] ?? "Event";
   const dot = accentFor(dto.eventType);
   const accentText = accentTextFor(dto.eventType);
@@ -152,6 +155,7 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
 
   const summaryInput = {
     title: dto.title,
+    source: dto.source,
     date: dto.date,
     endDate: dto.endDate,
     deadlineKind: dto.deadlineKind,
@@ -321,12 +325,12 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
                 {heading} · {DISPLAY_TZ_LABEL}
               </p>
               <p className="mt-2 font-mono text-[30px] tracking-tight text-ink tabular-nums">
-                {countdown(target)}
+                {target ? countdown(target) : ""}
               </p>
             </>
           ) : (
             <p className="text-[11px] uppercase tracking-[0.14em] text-faint">
-              {timing === "Ended" ? "This event has closed" : `Happening now`}
+              {timing}
             </p>
           )}
 
@@ -337,7 +341,7 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
               rel="noopener noreferrer"
               className="glow-primary mt-8 block rounded-[2px] bg-gradient-to-r from-primary to-primary-2 px-4 py-2.5 text-center text-sm font-semibold text-bg transition-all duration-200 hover:brightness-105"
             >
-              Register on {sourceName}
+              {active && dates.kind === "registration" ? "Register on" : active && dates.kind === "submission" ? "View submissions on" : "View listing on"} {sourceName}
             </a>
           ) : (
             <p className="mt-8 border-y border-line px-4 py-3 text-center text-[13px] text-faint">
@@ -432,18 +436,15 @@ function buildEventJsonLd(
   organiser: string | null,
   whoCanJoin: string | null
 ) {
-  const phase = eventPhase(dto.date, dto.endDate);
-  const status =
-    phase === "ended" ? "https://schema.org/EventCompleted" : "https://schema.org/EventScheduled";
+  const dates = eventDates(dto);
 
   return {
     "@context": "https://schema.org",
     "@type": "Event",
     name: dto.title,
     ...(dto.brief ? { description: dto.brief } : { description: whoCanJoin ?? undefined }),
-    startDate: dto.date,
-    ...(dto.endDate ? { endDate: dto.endDate } : {}),
-    eventStatus: status,
+    ...(dates.start ? { startDate: dates.start } : {}),
+    ...(dates.end ? { endDate: dates.end } : {}),
     eventAttendanceMode: dto.isOnline
       ? "https://schema.org/OnlineEventAttendanceMode"
       : "https://schema.org/OfflineEventAttendanceMode",

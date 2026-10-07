@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { BookmarkButton } from "./BookmarkButton";
 import { Poster, accentFor, accentTextFor } from "./EventCard";
-import { eventPhase, eventTiming, formatDateRange } from "@/lib/format";
+import { eventDateLabel, eventStatus, isActionable } from "@/lib/event-dates";
 import { EVENT_TYPE_LABELS } from "@/lib/constants";
 import { eventOneLiner } from "@/lib/event-summary";
 import type { EventDTO } from "@/lib/events";
@@ -34,7 +34,7 @@ export function IndexRow({
 }) {
   const accent = accentFor(event.eventType);
   const accentText = accentTextFor(event.eventType);
-  const phase = eventPhase(event.date, event.endDate);
+  const active = isActionable(event);
   const location = event.isOnline ? "Online" : (event.city ?? "TBA");
   const typeLabel = EVENT_TYPE_LABELS[event.eventType] ?? "Event";
 
@@ -110,18 +110,18 @@ export function IndexRow({
             the facts and the deadline have to appear here or they are simply
             unavailable on a phone. */}
         <p className="mt-2 text-[12px] text-faint sm:hidden">
-          {location} · {formatDateRange(event.date, event.endDate)}
+          {location} · {eventDateLabel(event)}
         </p>
-        <p className={`mt-0.5 text-[12px] sm:hidden ${phase === "ended" ? "text-faint" : "text-closing"}`}>
-          {eventTiming(event.date, event.endDate)}
+        <p className={`mt-0.5 text-[12px] sm:hidden ${!active ? "text-faint" : "text-closing"}`}>
+          {eventStatus(event)}
         </p>
       </div>
 
       <div className="hidden shrink-0 text-right sm:block">
         <p className="text-[13px] text-muted">{location}</p>
-        <p className="text-[13px] text-faint">{formatDateRange(event.date, event.endDate)}</p>
-        <p className={`mt-1 text-[12px] ${phase === "ended" ? "text-faint" : "text-closing"}`}>
-          {eventTiming(event.date, event.endDate)}
+        <p className="text-[13px] text-faint">{eventDateLabel(event)}</p>
+        <p className={`mt-1 text-[12px] ${!active ? "text-faint" : "text-closing"}`}>
+          {eventStatus(event)}
         </p>
         <Link
           href={`/events/${event.id}`}
@@ -145,6 +145,7 @@ function skimmable(event: EventDTO): string | null {
   if (event.brief) return event.brief;
   return eventOneLiner({
     title: event.title,
+    source: event.source,
     date: event.date,
     endDate: event.endDate,
     deadlineKind: event.deadlineKind,

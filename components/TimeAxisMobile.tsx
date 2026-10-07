@@ -5,6 +5,7 @@ import { useMemo } from "react";
 import type { EventDTO } from "@/lib/events";
 import { EVENT_TYPE_LABELS } from "@/lib/constants";
 import { countdown, formatDateRange } from "@/lib/format";
+import { countdownHeading } from "@/lib/event-summary";
 import { useNow } from "@/lib/use-now";
 import { accentFor, accentTextFor } from "./EventCard";
 import { MOBILE_WINDOW, useAxisModel, type AxisEvent } from "@/lib/use-axis-model";
@@ -117,7 +118,7 @@ export function TimeAxisMobile({
           find it by identity rather than by geometry. */}
       <div className="border-b border-line" data-axis="mobile">
         {days.map((d, i) => {
-          const date = new Date(d);
+          const date = new Date(d + 5.5 * 3600000);
           const rows = rowsByDay.get(d) ?? [];
           const isToday = d === todayStart;
           const month = monthIndex.get(i);
@@ -177,6 +178,9 @@ export function TimeAxisMobile({
                     >
                       {countdown(row.event.endDate ?? row.event.date)}
                     </p>
+                    <p className="mt-1 text-[10px] leading-tight text-faint">
+                      {countdownHeading(row.event) ?? "Closed"}
+                    </p>
                   </Link>
                 ))}
               </div>
@@ -202,7 +206,7 @@ export function TimeAxisMobile({
                     isToday ? "text-primary" : "text-faint"
                   }`}
                 >
-                  {date.getDate()}
+                  {date.getUTCDate()}
                 </span>
               </div>
             </div>

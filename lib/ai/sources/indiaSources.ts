@@ -2,6 +2,7 @@ import type { DiscoveryOptions, RawEvent } from "../types";
 import { politeFetch, fetchText, fetchJson, extractNextData, decodeFlightPayload } from "./http";
 import type { EventDetails } from "../../event-details";
 import { readTeamSize } from "../../event-details";
+import { validDate } from "../../event-dates";
 
 /**
  * Adapters for Devfolio, Hack2Skill, WeMakeDevs and MLH.
@@ -181,6 +182,9 @@ const devfolioFetch = async (): Promise<RawEvent[]> => {
       // per-hackathon page 404s, so there is nowhere else to look. What it does
       // publish is themes and a participant count, and those are recorded.
       const details: EventDetails = {
+        eventStart: validDate(h.starts_at),
+        eventEnd: validDate(eventEnd),
+        ...(validDate(regEnd) ? { regEnd: validDate(regEnd)! } : {}),
         ...(themes.length ? { themes } : {}),
         ...(participants > 0 ? { participants } : {}),
         ...(h.settings?.reg_starts_at ? { regStart: String(h.settings.reg_starts_at) } : {}),
@@ -427,6 +431,10 @@ const hack2skillFetch = async (_location = "", opts?: DiscoveryOptions): Promise
       const eligibility = [eligibilityText, ageNote].filter(Boolean).join(" ").trim();
 
       const details: EventDetails = {
+        eventStart: null,
+        eventEnd: null,
+        ...(validDate(regEnd) ? { regEnd: validDate(regEnd)! } : {}),
+        ...(validDate(d.submissionEnd) ? { submissionEnd: validDate(d.submissionEnd)! } : {}),
         ...(sourceText ? { sourceText } : {}),
         ...readTeamSize(d.tags?.teamSize?.min, d.tags?.teamSize?.max),
         ...(ticket === "FREE" ? { fee: "free" as const } : {}),
@@ -449,7 +457,7 @@ const hack2skillFetch = async (_location = "", opts?: DiscoveryOptions): Promise
           registrationNote,
         date: d.registrationStart ?? d.submissionStart ?? String(reference),
         endDate: String(reference),
-        deadlineKind: regEnd ? "registration" : "event-end",
+        deadlineKind: regEnd ? "registration" : "submission",
         city,
         isOnline: isOnline || isHybrid,
         organizer: organiser ?? "Hack2skill listing (organiser not stated)",

@@ -8,6 +8,7 @@ import { EventQuickLook } from "./EventQuickLook";
 import { TimeAxis } from "./TimeAxis";
 import { TimeAxisMobile } from "./TimeAxisMobile";
 import { SkeletonCard } from "./SkeletonCard";
+import { isActionable } from "@/lib/event-dates";
 
 const TIMEFRAMES = [
   { id: "all", label: "Upcoming" },
@@ -132,9 +133,8 @@ export function EventExplorer({
    * would claim a finish date is a deadline and would inflate "closing soon"
    * with events that are not closing, so they get their own section below.
    *
-   * A null deadlineKind is legacy content from before the column existed
-   * (Devpost, Unstop, GDG) whose endDate has always been treated as the
-   * closing date. It stays on the axis, so this change is purely additive.
+   * Unknown deadlines stay off the closing axis; known registration and
+   * submission deadlines use their own labels.
    */
   const { index, closing, happening } = useMemo(() => {
     if (!events || events.length === 0) {
@@ -142,26 +142,27 @@ export function EventExplorer({
     }
     const deadlineOf = (e: EventDTO) =>
       e.endDate ? new Date(e.endDate).getTime() : new Date(e.date).getTime();
-    const isEndDated = (e: EventDTO) => e.deadlineKind === "event-end";
+    const isEndDated = (e: EventDTO) => e.deadlineKind !== "registration" && e.deadlineKind !== "submission";
     const bySoonest = (a: EventDTO, b: EventDTO) => deadlineOf(a) - deadlineOf(b);
 
-    const closable = events.filter((e) => !isEndDated(e)).sort(bySoonest);
-    const endDated = events.filter(isEndDated).sort(bySoonest);
+    const active = events.filter((e) => isActionable(e, now));
+    const closable = active.filter((e) => !isEndDated(e)).sort(bySoonest);
+    const endDated = active.filter(isEndDated).sort(bySoonest);
 
     return {
       closing: closable,
       happening: endDated,
-      // Full roster minus what the axis already shows.
-      index: [...closable.slice(1), ...endDated].sort(bySoonest),
+      // Full roster, including events highlighted on the axis.
+      index: [...closable, ...endDated].sort(bySoonest),
     };
-  }, [events]);
+  }, [events, now]);
 
   // Only genuine closings. An event that merely ends soon is not closing.
   const closingSoon = useMemo(
     () =>
       closing.filter((e) => {
         const d = e.endDate ? new Date(e.endDate).getTime() : new Date(e.date).getTime();
-        return d - now < 7 * 86400000;
+        return d > now && d - now < 7 * 86400000;
       }).length,
     [closing, now]
   );

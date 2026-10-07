@@ -52,6 +52,11 @@ export interface EventDetails {
   participants?: number;
   /** When registration opens, when submissions open. */
   regStart?: string;
+  regEnd?: string;
+  submissionEnd?: string;
+  /** Explicit null means the source did not publish an actual event date. */
+  eventStart?: string | null;
+  eventEnd?: string | null;
   submissionStart?: string;
   /** Set when the source gives no registration deadline at all. */
   noDeadlineReason?: string;

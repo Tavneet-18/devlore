@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useMemo } from "react";
 import type { EventDTO } from "@/lib/events";
 import { EVENT_TYPE_LABELS } from "@/lib/constants";
-import { countdown, deadlineLabel, eventPhase } from "@/lib/format";
+import { countdown } from "@/lib/format";
 import { useNow } from "@/lib/use-now";
 import {
   CARD_GAP,
@@ -20,7 +20,7 @@ import {
   useAxisModel,
 } from "@/lib/use-axis-model";
 import { accentFor, accentTextFor } from "./EventCard";
-import { eventOneLiner } from "@/lib/event-summary";
+import { eventOneLiner, countdownHeading } from "@/lib/event-summary";
 
 /**
  * The line shown on an axis card and in its native tooltip.
@@ -33,6 +33,7 @@ function axisSkim(event: EventDTO): string | null {
   if (event.brief) return event.brief;
   const line = eventOneLiner({
     title: event.title,
+    source: event.source,
     date: event.date,
     endDate: event.endDate,
     deadlineKind: event.deadlineKind,
@@ -178,8 +179,8 @@ export function TimeAxis({ events, now: nowIso }: { events: EventDTO[]; now: str
 
           {/* Date labels below the axis. */}
           {model.days.map((d, i) => {
-            const date = new Date(d);
-            const day = date.getDay();
+            const date = new Date(d + 5.5 * 3600000);
+            const day = date.getUTCDay();
             const isToday = startOfDay(d) === startOfDay(now);
             const dim = day === 0 || day === 6;
             return (
@@ -193,7 +194,7 @@ export function TimeAxis({ events, now: nowIso }: { events: EventDTO[]; now: str
                     isToday ? "text-ink" : dim ? "text-faint-dim" : "text-faint"
                   }`}
                 >
-                  {date.getDate()}
+                  {date.getUTCDate()}
                 </span>
                 <span className="text-[9px] uppercase tracking-[0.16em] text-faint-dim">
                   {WEEKDAYS[day]}
@@ -287,7 +288,7 @@ export function TimeAxis({ events, now: nowIso }: { events: EventDTO[]; now: str
                       from. Two of the four sources publish no registration
                       deadline, so this is not a cosmetic label. */}
                   <p className="mt-0.5 truncate text-[9px] uppercase tracking-[0.1em] text-faint-dim">
-                    {deadlineLabel(p.event.deadlineKind, eventPhase(p.event.date, p.event.endDate))}
+                    {countdownHeading(p.event) ?? "Closed"}
                     {" · "}
                     {SOURCE_LABELS[p.event.source] ?? p.event.source}
                   </p>

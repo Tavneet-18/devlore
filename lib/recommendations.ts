@@ -1,5 +1,7 @@
 import type { Event } from "@prisma/client";
 import { parseTags } from "./events";
+import { parseDetails } from "./event-details";
+import { isActionable } from "./event-dates";
 
 /**
  * The fields the similarity score actually reads.
@@ -8,7 +10,8 @@ import { parseTags } from "./events";
  * row and one from `eventSelect()`, which omits the migration-004 columns until
  * they exist. Scoring has no business reading a brief.
  */
-type Scored = Pick<Event, "id" | "status" | "tags" | "eventType" | "beginnerFriendly" | "isOnline" | "city" | "date">;
+type Scored = Pick<Event, "id" | "status" | "tags" | "eventType" | "beginnerFriendly" | "isOnline" | "city" | "date" | "endDate" | "source"> &
+  Partial<Pick<Event, "deadlineKind" | "details">>;
 
 function scoreSimilarity(a: Scored, b: Scored): number {
   let score = 0;
@@ -23,9 +26,15 @@ function scoreSimilarity(a: Scored, b: Scored): number {
 }
 
 /** Events most similar to `event`, excluding the event itself. */
-export function similarEvents(event: Scored, all: Scored[], limit = 3): Scored[] {
+export function similarEvents<T extends Scored>(event: Scored, all: T[], limit = 3, now = Date.now()): T[] {
   return all
-    .filter((e) => e.id !== event.id && e.status === "APPROVED")
+    .filter((e) => e.id !== event.id && e.status === "APPROVED" && isActionable({
+      date: e.date.toISOString(),
+      endDate: e.endDate?.toISOString(),
+      source: e.source,
+      deadlineKind: e.deadlineKind,
+      details: parseDetails(e.details),
+    }, now))
     .map((e) => ({ e, s: scoreSimilarity(event, e) }))
     .filter((x) => x.s > 0)
     // Tiebreak on the soonest event, not on viewCount. The counter was dropped
@@ -33,7 +42,7 @@ export function similarEvents(event: Scored, all: Scored[], limit = 3): Scored[]
     // it never broke a tie in practice and only added a field to carry. Among
     // equally similar events, the one happening first is the more useful
     // suggestion anyway.
-    .sort((x, y) => y.s - x.s || x.e.date.getTime() - y.e.date.getTime())
+    .sort((x, y) => y.s - x.s || (x.e.endDate ?? x.e.date).getTime() - (y.e.endDate ?? y.e.date).getTime())
     .slice(0, limit)
     .map((x) => x.e);
 }

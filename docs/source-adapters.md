@@ -108,3 +108,32 @@ label ships, the values are stored correctly but the existing copy is generic.
 `scripts/capture-fixtures.mjs` and `capture-fixture-hack2skill.mjs` /
 `capture-fixture-wmd.mjs` to re-capture them. Intended for parser unit tests
 that must not hit the network.
+
+
+## Date compatibility and display (7 October 2026)
+
+The database date/endDate columns remain legacy index bounds: for listings
+with a closing deadline, endDate (or date when endDate is absent) is the
+closing reference. They must not be rendered directly as the event run range.
+
+The existing details JSON now stores eventStart, eventEnd, regEnd and
+submissionEnd separately. Explicit null event dates mean the source did not
+publish them. No database migration is required. Devfolio preserves its real
+start and finish alongside registration close. Hack2Skill and Unstop do not
+promote registration dates to event dates. Devpost's listing period ends with
+submissions, so its countdown says "Submissions close" and does not offer a
+registration-deadline calendar entry.
+
+lib/event-dates.ts interprets both old and newly ingested rows. Old Devfolio
+rows display the known start but omit the unrecorded actual end. Old
+Hack2Skill/Unstop rows omit event dates. Next ingestion refreshes separated
+facts naturally; this change does not perform a production backfill.
+
+Discovery and recommendation queries use the closing reference exclusively,
+so a later event start cannot keep closed registration in actionable results.
+A second source cannot replace a primary source timeline with a different
+kind of deadline. The date/endDate convention remains in place until a future
+schema migration introduces dedicated indexed date columns.
+
+Offline regression verification:
+node node_modules/tsx/dist/cli.mjs scripts/test-event-dates.tsx

@@ -1,7 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
-import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
-import { toEventDTO, eventSelect, asSelected } from "@/lib/events";
+import { toEventDTO, eventSelect, asSelected, buildEventWhere } from "@/lib/events";
 import { EVENT_TYPES } from "@/lib/constants";
 import { getEnhancer } from "@/lib/ai";
 import { getViewerId } from "@/lib/session";
@@ -30,58 +29,8 @@ export async function GET(request: NextRequest) {
 
   const viewerId = await getViewerId();
 
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const inWeek = new Date(today.getTime() + 7 * 86400000);
-  const inMonth = new Date(today.getTime() + 30 * 86400000);
-
-  // Collected as a local array because Prisma types AND as a union.
-  const and: Prisma.EventWhereInput[] = [
-    // Still relevant = start OR end in the future. Hackathons often have a
-    // start date in the past while registration remains open.
-    { OR: [{ date: { gte: today } }, { endDate: { gte: today } }] },
-  ];
-
-  if (city) {
-    // Online events match every city filter, mirroring the UI expectation.
-    and.push({
-      OR: [{ city: { contains: city, mode: "insensitive" } }, { isOnline: true }],
-    });
-  }
-
-  if (q) {
-    // Postgres LIKE is case-sensitive, so without an explicit insensitive
-    // mode a search for "ai" silently misses every event titled "AI" and the
-    // filter looks broken for no visible reason.
-    and.push({
-      OR: [
-        { title: { contains: q, mode: "insensitive" } },
-        { summary: { contains: q, mode: "insensitive" } },
-        { city: { contains: q, mode: "insensitive" } },
-        { tags: { contains: q, mode: "insensitive" } },
-      ],
-    });
-  }
-
-  // The timeframes select on the DEADLINE, matching how the spatial axis
-  // positions every card. Filtering on the start date instead hid events
-  // that had already opened but are still closing inside the window.
-  if (timeframe === "week" || timeframe === "month") {
-    const limit = timeframe === "week" ? inWeek : inMonth;
-    and.push({
-      OR: [{ endDate: { lte: limit } }, { endDate: null, date: { lte: limit } }],
-    });
-  }
-
-  const where: Prisma.EventWhereInput = {
-    status: includePending ? { in: ["APPROVED", "PENDING"] } : "APPROVED",
-    AND: and,
-  };
-
-  if (type && EVENT_TYPES.includes(type as never)) where.eventType = type;
-  if (mode === "online") where.isOnline = true;
-  if (mode === "offline") where.isOnline = false;
-  if (beginner) where.beginnerFriendly = true;
+  const where = buildEventWhere({ city, type, mode, timeframe, beginner, q });
+  if (includePending) where.status = { in: ["APPROVED", "PENDING"] };
 
   // Explicit select, so a deploy that lands before migration 004 does not
   // break the whole listing. See eventSelect in lib/events.ts.

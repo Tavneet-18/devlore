@@ -80,9 +80,8 @@ export const MONTHS = [
 ];
 
 export function startOfDay(t: number): number {
-  const d = new Date(t);
-  d.setHours(0, 0, 0, 0);
-  return d.getTime();
+  const istOffset = 5.5 * 3600000;
+  return Math.floor((t + istOffset) / DAY) * DAY - istOffset;
 }
 
 /**
@@ -143,13 +142,13 @@ export function useAxisModel(
     // that blanked the whole page for every reader.
     const inWindow = events.filter((e) => {
       const d = deadlineOf(e);
-      return d >= rangeStart && d <= rangeEnd;
+      return d >= rangeStart && d < rangeEnd;
     });
 
     const sorted = [...inWindow].sort((a, b) => deadlineOf(a) - deadlineOf(b));
 
     // The single nearest future deadline gets emphasised.
-    const future = sorted.filter((e) => deadlineOf(e) >= now);
+    const future = sorted.filter((e) => deadlineOf(e) > now);
     const nearestId = future.length
       ? future.reduce((a, b) => (deadlineOf(a) <= deadlineOf(b) ? a : b)).id
       : null;
@@ -161,7 +160,7 @@ export function useAxisModel(
         event: e,
         day,
         offset: Math.max(0, ((day - rangeStart) / DAY)),
-        past: d < now,
+        past: d <= now,
         nearest: e.id === nearestId,
       };
     });
@@ -173,7 +172,7 @@ export function useAxisModel(
     const monthStarts: { index: number; label: string }[] = [];
     let lastMonth = -1;
     days.forEach((d, i) => {
-      const m = new Date(d).getMonth();
+      const m = new Date(d + 5.5 * 3600000).getUTCMonth();
       if (m !== lastMonth) {
         lastMonth = m;
         monthStarts.push({ index: i, label: MONTHS[m] });
@@ -181,7 +180,7 @@ export function useAxisModel(
     });
 
     const expiringSoon = future.filter((e) => deadlineOf(e) - now < 7 * DAY).length;
-    const furtherOut = events.filter((e) => deadlineOf(e) > rangeEnd).length;
+    const furtherOut = events.filter((e) => deadlineOf(e) >= rangeEnd).length;
 
     return {
       inWindow: rows,

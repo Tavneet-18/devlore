@@ -220,11 +220,9 @@ const devpostFetch: ExtractFn = async (city) => {
             .join(" "),
           date: range.start,
           endDate: range.end,
-          // range.end is the close of the submission window — a real closing
-          // deadline, not the date the hackathon finishes. Without this the
-          // row would be treated as end-date-only and dropped from the closing
-          // axis, and would never get a calendar button.
-          deadlineKind: "registration",
+          // This is a submission deadline, not a registration deadline.
+          deadlineKind: "submission",
+          details: { eventStart: null, eventEnd: null, submissionStart: range.start, submissionEnd: range.end },
           venue: location || undefined,
           city: isOnline ? undefined : location || city,
           isOnline,
@@ -319,17 +317,8 @@ const unstopFetch: ExtractFn = async (city) => {
       // start date at all. There is no field to read for when the hackathon
       // actually runs.
       //
-      // So `date` — which every surface labels "Runs" — is set to the
-      // registration deadline, and the row is told plainly what that date is:
-      // `deadlineKind: "registration"` makes the card say "Closes <date>" rather
-      // than "Runs <date>", and suppresses the calendar buttons, which would
-      // otherwise offer to add a registration deadline as if it were the event.
-      // The reader is shown the one date actually published.
-      //
-      // The alternative is to drop all 263 listings because the start date is
-      // missing. The previous adapter did that by accident, reading field names
-      // this payload does not have, which is why a source with 263 open
-      // hackathons on it has never contributed a single row.
+      // date is the legacy index bound. Explicit null event dates prevent
+      // this registration deadline being displayed as an event date.
       const regEnd = parseEventDate(regn.end_regn_dt);
       if (!regEnd || !isStillRelevant(regEnd)) continue;
       const regStart = parseEventDate(regn.start_regn_dt);
@@ -421,12 +410,15 @@ const unstopFetch: ExtractFn = async (city) => {
         // The parameter, not the platform, decides the type.
         eventType: "hackathon",
         details: {
+          eventStart: null,
+          eventEnd: null,
+          regEnd,
           ...(prizeLabel ? { prize: prizeLabel.slice(0, 300) } : {}),
           ...(eligibility ? { eligibility: eligibility.slice(0, 400) } : {}),
           ...(teamMin >= 1 ? { teamMin } : {}),
           ...(teamMax >= 1 ? { teamMax } : {}),
           ...(registered > 0 ? { participants: registered } : {}),
-          ...(regStart ? { submissionStart: regStart } : {}),
+          ...(regStart ? { regStart } : {}),
           ...(paidAmount > 0 ? { feeAmount: `₹${paidAmount.toLocaleString("en-IN")}` } : {}),
           ...(orgName ? { organiser: orgName.slice(0, 120) } : {}),
         },

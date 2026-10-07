@@ -12,7 +12,7 @@ export interface AIEnhancer {
   enhance(title: string, description: string, link?: string): Promise<AIEnhancement>;
 }
 
-export type DeadlineKind = "registration" | "event-end";
+export type DeadlineKind = "registration" | "submission" | "event-end";
 
 /** Re-exported so adapters can import the details shape from one place. */
 export type { EventDetails } from "../event-details";
@@ -31,7 +31,8 @@ export interface RawEvent {
   endDate?: string;
   /**
    * Which date the countdown is measuring. "registration" when the platform
-   * publishes a real registration deadline; "event-end" when it does not and
+   * publishes a real registration deadline; "submission" for a submission
+   * deadline; "event-end" when it does not and
    * we fall back to the event's end date. Surfaced in the UI so a finish date
    * is never labelled as a closing date.
    */

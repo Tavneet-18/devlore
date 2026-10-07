@@ -1,10 +1,10 @@
+import { eventDates, eventDateLabel, eventDatePhase } from "./event-dates";
 import type { EventDetails } from "./event-facts";
 import { feeLabel, teamSizeLabel } from "./event-facts";
 import {
   formatDateRange,
   formatDateTime,
   deadlineLabel,
-  eventPhase,
   DISPLAY_TZ_LABEL,
 } from "./format";
 
@@ -25,6 +25,7 @@ import {
 
 export type SummaryInput = {
   title: string;
+  source?: string;
   date: string;
   endDate?: string | null;
   deadlineKind?: string | null;
@@ -45,18 +46,16 @@ const MAX = 180;
 export function eventOneLiner(input: SummaryInput): string {
   const clauses: string[] = [];
 
-  const reference = input.endDate ?? input.date;
-  const phase = eventPhase(input.date, input.endDate);
-  if (input.deadlineKind === "event-end") {
-    // The only date is the finish date. Say "ends"/"runs until", never
-    // "closes" — this is the distinction the whole deadline model rests on.
-    clauses.push(
-      phase === "ended"
-        ? `Ended ${formatDateRange(input.date, input.endDate)}`
-        : `Runs until ${formatDateRange(input.date, input.endDate)}`
-    );
+  const { deadline, kind, end } = eventDates(input);
+  if (deadline) {
+    const closed = new Date(deadline).getTime() <= Date.now();
+    const prefix = kind === "submission" ? "Submissions" : "Registration";
+    const verb = closed ? "closed" : kind === "submission" ? "close" : "closes";
+    clauses.push(`${prefix} ${verb} ${formatDateRange(deadline)}`);
+  } else if (end) {
+    clauses.push(`${new Date(end).getTime() <= Date.now() ? "Ended" : "Ends"} ${formatDateRange(end)}`);
   } else {
-    clauses.push(`${phase === "ended" ? "Closed" : "Closes"} ${formatDateRange(reference)}`);
+    clauses.push(eventDateLabel(input));
   }
 
   clauses.push(input.isOnline ? "Online" : "In person");
@@ -111,18 +110,17 @@ function truncate(text: string, max: number): string {
  * calendar believing it is a registration deadline.
  */
 export function registrationDeadline(input: SummaryInput): string | null {
-  if (input.deadlineKind !== "registration") return null;
-  const d = new Date(input.endDate ?? input.date);
-  if (Number.isNaN(d.getTime())) return null;
-  if (d.getTime() <= Date.now()) return null;
-  return d.toISOString();
+  const { deadline, kind } = eventDates(input);
+  if (kind !== "registration" || !deadline || new Date(deadline).getTime() <= Date.now()) return null;
+  return deadline;
 }
 
 /** The heading above the countdown, honest about which date it measures. */
 export function countdownHeading(input: SummaryInput): string | null {
-  const reference = input.endDate ?? input.date;
-  if (new Date(reference).getTime() <= Date.now()) return null;
-  return deadlineLabel(input.deadlineKind, eventPhase(input.date, input.endDate));
+  const { deadline, kind, start, end } = eventDates(input);
+  const target = deadline ?? end ?? start;
+  if (!target || new Date(target).getTime() <= Date.now()) return null;
+  return deadlineLabel(kind ?? (end ? "event-end" : null), eventDatePhase(input) ?? "upcoming");
 }
 
 export type GlanceRow = { label: string; value: string };
@@ -148,11 +146,14 @@ export function buildGlance(input: SummaryInput & { whoCanJoin?: string | null }
     if (value && value.trim()) rows.push({ label, value: value.trim() });
   };
 
-  add("Runs", formatDateRange(input.date, input.endDate));
+  const dates = eventDates(input);
+  if (dates.start && dates.end) add("Runs", formatDateRange(dates.start, dates.end));
+  else if (dates.start) add("Starts", formatDateRange(dates.start));
+  else if (dates.end) add("Ends", formatDateRange(dates.end));
+  else add("Event dates", "Not published by the source");
 
-  if (input.deadlineKind === "registration") {
-    const deadline = registrationDeadline(input);
-    if (deadline) add("Registration closes", formatDateTime(deadline));
+  if (dates.deadline) {
+    add(dates.kind === "submission" ? "Submissions close" : "Registration closes", formatDateTime(dates.deadline));
   } else if (d?.noDeadlineReason) {
     add("Registration deadline", d.noDeadlineReason);
   }

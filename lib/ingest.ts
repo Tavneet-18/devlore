@@ -61,6 +61,7 @@ function hashContent(event: {
   title: string;
   description: string;
   date: string;
+  endDate?: string;
   city?: string;
   link?: string;
   organizer?: string;
@@ -76,6 +77,7 @@ function hashContent(event: {
         event.title.trim(),
         event.description.trim(),
         event.date,
+        event.endDate ?? "",
         event.city ?? "",
         event.link ?? "",
         // Shown on the card, the quick-look and the detail page, and used as a
@@ -218,7 +220,6 @@ async function upsertEvent(
 
       if (dupes.length > 0) {
         const winner = dupes[0].canonicalId;
-        const canonical = nearby.find((n) => n.id === winner);
         const refId = raw.sourceId ?? externalId;
         await db.eventSourceRef.upsert({
           where: { source_sourceId: { source: raw.source, sourceId: refId } },
@@ -230,38 +231,14 @@ async function upsertEvent(
           },
           update: { lastSeenAt: new Date(), link: raw.link ?? undefined },
         });
-        // Refresh the canonical so a poster or date correction still lands.
-        //
-        // The comment above used to claim that and the code did not do it: this
-        // update carried only imageUrl and fetchedAt, so a registration
-        // deadline extended on a second platform never reached the row readers
-        // actually see. A duplicate record is discarded immediately after this,
-        // so nothing downstream would ever apply the correction.
-        //
-        // Extend-only, deliberately. When two platforms describe one event,
-        // there is no principled way to say which is authoritative, and the
-        // asymmetry matters: extending a deadline can only give a reader more
-        // time, while shortening it on the say-so of a possibly-staler second
-        // source would close an event that is still genuinely open. So an
-        // incoming deadline replaces the canonical one only when the canonical
-        // has none, or when the incoming one is later. A correction that moves
-        // a date earlier is dropped rather than guessed at.
-        const deadlineExtended = (() => {
-          const incoming = endDate;
-          if (!incoming) return false;
-          const current = canonical?.endDate ?? null;
-          if (!current) return true;
-          return incoming.getTime() > current.getTime();
-        })();
-
+        // A second platform may report a different type of closing date.
+        // Preserve the primary source timeline instead of replacing a
+        // registration deadline with a submission or event-end date.
         await db.event.update({
           where: { id: winner },
           data: {
             imageUrl: raw.imageUrl ?? undefined,
             fetchedAt: new Date(),
-            ...(deadlineExtended
-              ? { date, endDate: endDate ?? undefined, deadlineKind: raw.deadlineKind ?? undefined }
-              : {}),
           },
         });
         return { created: false, updated: true, skipped: false, merged: true };

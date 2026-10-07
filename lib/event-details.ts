@@ -56,6 +56,10 @@ export const EventDetailsSchema = z.object({
 
   /** When registration opens, when submissions open. */
   regStart: z.string().optional(),
+  regEnd: z.string().datetime({ offset: true }).optional(),
+  submissionEnd: z.string().datetime({ offset: true }).optional(),
+  eventStart: z.string().datetime({ offset: true }).nullable().optional(),
+  eventEnd: z.string().datetime({ offset: true }).nullable().optional(),
   submissionStart: z.string().optional(),
 
   /** Set when the source gives no registration deadline at all. */

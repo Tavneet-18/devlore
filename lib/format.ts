@@ -78,8 +78,8 @@ export function eventPhase(startIso: string, endIso?: string | null): EventPhase
   const now = Date.now();
 
   if (Number.isNaN(start)) return "ended";
-  if (end > now) return "ongoing";
   if (start > now) return "upcoming";
+  if (end >= start && end > now) return "ongoing";
   return "ended";
 }
 
@@ -133,12 +133,14 @@ export function formatDateRange(startIso: string, endIso?: string | null): strin
   if (!endIso) return formatDate(startIso);
 
   const end = new Date(endIso);
-  if (Number.isNaN(end.getTime())) return formatDate(startIso);
+  if (Number.isNaN(end.getTime()) || end < start) return formatDate(startIso);
 
-  const sameDay = start.toDateString() === end.toDateString();
+  const dayKey = (d: Date) => d.toLocaleDateString("en-CA", TZ);
+  const sameDay = dayKey(start) === dayKey(end);
   if (sameDay) return formatDate(startIso);
 
-  const sameYear = start.getFullYear() === end.getFullYear();
+  const yearKey = (d: Date) => d.toLocaleDateString("en-CA", { ...TZ, year: "numeric" });
+  const sameYear = yearKey(start) === yearKey(end);
   const endLabel = end.toLocaleDateString("en-US", {
     ...TZ,
     month: "short",
@@ -162,6 +164,7 @@ export function deadlineLabel(
   phase: EventPhase
 ): string {
   if (kind === "registration") return "Registration closes in";
+  if (kind === "submission") return "Submissions close in";
   if (kind === "event-end") return phase === "ongoing" ? "Ends in" : "Runs until";
   return phase === "ongoing" ? "Ends in" : "Starts in";
 }
