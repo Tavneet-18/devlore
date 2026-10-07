@@ -14,13 +14,13 @@ const SOURCES = `${TRUSTED_SOURCES.map(sourceLabel).join(" · ")} · Submitted d
 export function Footer() {
   return (
     <footer className="border-t border-line">
-      <div className="mx-auto max-w-6xl px-6 py-12 sm:px-10">
+      <div className="mx-auto max-w-6xl px-5 py-12 sm:px-8 lg:px-10">
         <div className="flex flex-col gap-8 md:flex-row md:items-start md:justify-between">
           <div className="max-w-sm">
             <p className="font-serif text-[19px] leading-none text-ink">Devlore</p>
             <p className="mt-3 text-[13px] leading-relaxed text-muted">
-              A dated index of the technical gatherings worth your time, ordered by how soon
-              they close.
+              Hackathons and tech events on one date axis, ordered by how soon each registration
+              closes — so the deadlines worth acting on are the ones in front of you.
             </p>
           </div>
 
@@ -40,9 +40,19 @@ export function Footer() {
           </nav>
         </div>
 
-        <div className="mt-10 border-t border-line pt-6 text-[11px] uppercase tracking-[0.12em] text-faint">
-          <p>Sources: {SOURCES}</p>
-          <p className="mt-2 normal-case tracking-normal text-faint">
+        {/* Sources and the verification caveat.
+
+            The size used to be inherited from the wrapper — `text-[11px]`,
+            the smallest on the page — by both lines, including the paragraph
+            that carries the only warning on the site: that deadlines are
+            republished and should be confirmed with the organiser. The warning
+            is the least skimmable text here and was set in the least legible
+            size. The label keeps 11px, because "Sources:" is a label; the
+            sentence gets 12px on a phone and 13px above sm, and a measure
+            capped at `2xl` so it is not set across 1152px of page width. */}
+        <div className="mt-10 border-t border-line pt-6 text-faint">
+          <p className="text-[11px] uppercase tracking-[0.12em]">Sources: {SOURCES}</p>
+          <p className="mt-3 max-w-2xl text-[12px] leading-relaxed sm:text-[13px]">
             Listings should always be verified directly with the organiser before travel or
             payment. Deadlines are republished from each source and may change without notice.
           </p>

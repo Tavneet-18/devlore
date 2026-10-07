@@ -35,10 +35,20 @@ const newsreader = Newsreader({
  */
 export const dynamic = "force-dynamic";
 
+/**
+ * Metadata leads with the benefit rather than the arrangement.
+ *
+ * The old description, "A dated index of hackathons, technical conferences,
+ * and engineering gatherings", was an accurate summary of the format and
+ * useless as a pitch: it listed three categories the index does not hold —
+ * every collected listing is a hackathon or a tech event — and left out the
+ * one thing that makes the site worth opening, which is that the ordering is
+ * by how soon each registration closes.
+ */
 export const metadata: Metadata = {
-  title: "Devlore — Hackathons & tech events",
+  title: "Devlore — hackathons & tech events",
   description:
-    "A dated index of hackathons, technical conferences, and engineering gatherings.",
+    "Hackathons and tech events on one date axis, ordered by how soon each registration closes. Search by title, city or tag, and narrow by city, format and deadline.",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
