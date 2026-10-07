@@ -137,3 +137,20 @@ schema migration introduces dedicated indexed date columns.
 
 Offline regression verification:
 node node_modules/tsx/dist/cli.mjs scripts/test-event-dates.tsx
+
+
+## City and format filters (7 October 2026)
+
+City selection matches published city text using the shared aliases in
+lib/event-filters.ts. Bangalore includes Bengaluru, Mumbai includes Vile Parle
+and Powai, and Delhi includes nearby NCR locations. Global online events are
+not included automatically in every city. Choose All cities to see online
+listings with no published location. City and format filters combine with AND.
+
+Unstop no longer fills missing city data with whichever city was passed to
+its global adapter. Future ingestion preserves unknown locations as unknown;
+existing rows are not rewritten by this change.
+
+The browser clears previous results while loading a changed filter and
+ignores cancelled/obsolete responses, keeping cards, counts and filter
+selection consistent.

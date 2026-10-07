@@ -9,6 +9,7 @@ import { TimeAxis } from "./TimeAxis";
 import { TimeAxisMobile } from "./TimeAxisMobile";
 import { SkeletonCard } from "./SkeletonCard";
 import { isActionable } from "@/lib/event-dates";
+import { FILTER_CITIES } from "@/lib/event-filters";
 
 const TIMEFRAMES = [
   { id: "all", label: "Upcoming" },
@@ -27,7 +28,6 @@ const TYPE_OPTIONS: { id: string; label: string }[] = [
   ...EVENT_TYPES.map((t) => ({ id: t, label: EVENT_TYPE_LABELS[t] ?? t })),
 ];
 
-const CITIES = ["Bangalore", "Mumbai", "Delhi", "Hyderabad", "Pune", "Chennai"];
 
 export function EventExplorer({
   city,
@@ -49,6 +49,7 @@ export function EventExplorer({
 
   const [events, setEvents] = useState<EventDTO[] | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadSequence, setLoadSequence] = useState(0);
   const [count, setCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
   /** The event whose quick-look is open, or null. */
@@ -79,13 +80,17 @@ export function EventExplorer({
       clearTimeout(a);
       clearTimeout(b);
     };
-  }, [loading]);
+  }, [loading, loadSequence]);
 
   const fetchEvents = useCallback(async () => {
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
     setLoading(true);
+    setLoadSequence(sequence => sequence + 1);
+    setEvents(null);
+    setCount(0);
+    setQuickLook(null);
     setError(null);
     setSlow(false);
     setStalled(false);
@@ -105,10 +110,11 @@ export function EventExplorer({
       });
       if (!res.ok) throw new Error("Failed");
       const data = await res.json();
+      if (controller.signal.aborted || abortRef.current !== controller) return;
       setEvents(data.events as EventDTO[]);
       setCount(data.count as number);
     } catch (err) {
-      if ((err as Error).name !== "AbortError") {
+      if (!controller.signal.aborted && abortRef.current === controller && (err as Error).name !== "AbortError") {
         setEvents(null);
         setError("Could not load events. Please try again.");
       }
@@ -242,9 +248,10 @@ export function EventExplorer({
             />
           </div>
 
-          <Tabs options={TYPE_OPTIONS} value={type} onChange={setType} />
-          <Tabs options={MODES} value={mode} onChange={setMode} />
+          <Tabs label="Event type" options={TYPE_OPTIONS} value={type} onChange={setType} />
+          <Tabs label="Event format" options={MODES} value={mode} onChange={setMode} />
           <Tabs
+            label="Deadline window"
             options={TIMEFRAMES as readonly { id: string; label: string }[]}
             value={timeframe}
             onChange={setTimeframe as (v: string) => void}
@@ -261,7 +268,7 @@ export function EventExplorer({
           </label>
         </div>
 
-        <div className="no-scrollbar flex items-center gap-1 overflow-x-auto text-[13px] whitespace-nowrap">
+        <div role="group" aria-label="Event city" className="no-scrollbar flex items-center gap-1 overflow-x-auto text-[13px] whitespace-nowrap">
           <button
             type="button"
             onClick={() => onCity("")}
@@ -272,7 +279,7 @@ export function EventExplorer({
           >
             All cities
           </button>
-          {CITIES.map((c) => (
+          {FILTER_CITIES.map((c) => (
             <button
               key={c}
               type="button"
@@ -293,7 +300,7 @@ export function EventExplorer({
               every keystroke of the search box and interrupting each time would
               make the field unusable. */}
           <span className="ml-auto text-[13px] text-faint" role="status" aria-live="polite">
-            {loading && events === null
+            {error ? "unavailable" : loading && events === null
               ? stalled
                 ? "timed out"
                 : "loading"
@@ -303,17 +310,25 @@ export function EventExplorer({
         </div>
       </div>
 
+      <p className="mt-3 text-[12px] leading-relaxed text-faint">
+        City filters match published locations, including nearby areas. Choose All cities
+        for online events without a location.
+      </p>
+
       {/* role="alert" so a failed load is announced rather than appearing silently.
           A reader who cannot see the red text has no other way of knowing the
           page is not showing events. */}
       {error && (
-        <p className="mt-10 text-sm text-critical" role="alert">
-          {error}
-        </p>
+        <div className="mt-10">
+          <p className="text-sm text-critical" role="alert">{error}</p>
+          <button onClick={() => void fetchEvents()} className="mt-3 text-[13px] font-semibold text-primary hover:underline">
+            Try again
+          </button>
+        </div>
       )}
 
       {/* A stalled request gets a dead end and a way out, not a longer shimmer. */}
-      {stalled && events === null && (
+      {stalled && !error && events === null && (
         <div className="mt-12 border-y border-line py-20 text-center">
           <p className="text-[15px] text-ink">This is taking too long.</p>
           <p className="mx-auto mt-2 max-w-sm text-[13px] leading-relaxed text-muted">
@@ -329,7 +344,7 @@ export function EventExplorer({
         </div>
       )}
 
-      {events === null && !stalled && (
+      {events === null && loading && !stalled && (
         <div className="mt-12 space-y-4">
           {slow && (
             <p className="text-[13px] text-faint">Still loading — this is slower than usual.</p>
@@ -400,10 +415,12 @@ export function EventExplorer({
 }
 
 function Tabs({
+  label,
   options,
   value,
   onChange,
 }: {
+  label: string;
   options: readonly { id: string; label: string }[];
   value: string;
   onChange: (v: string) => void;
@@ -417,7 +434,7 @@ function Tabs({
   // meant for one chip would land on the row above. A 24px row gap puts the
   // pitch at 47px, clear of the 44px target.
   return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 coarse:gap-y-6">
+    <div role="group" aria-label={label} className="flex flex-wrap items-center gap-x-4 gap-y-2 coarse:gap-y-6">
       {options.map((opt) => {
         const selected = value === opt.id;
         return (

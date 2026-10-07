@@ -1,4 +1,5 @@
 import type { DiscoverySource, RawEvent } from "../types";
+import { cityAliases } from "../../event-filters";
 import { USER_AGENT } from "./http";
 
 /**
@@ -125,19 +126,9 @@ function normaliseImage(value: string): string | undefined {
  * "Navi Mumbai" vs Mumbai, "Delhi NCR" vs Delhi). Expand each requested city
  * into the set of spellings that should count as a match.
  */
-const CITY_ALIASES: Record<string, string[]> = {
-  bangalore: ["bangalore", "bengaluru", "blr", "whitefield", "koramangala", "indiranagar", "hsr"],
-  mumbai: ["mumbai", "bombay", "navi mumbai", "thane", "bkc", "powai", "andheri"],
-  delhi: ["delhi", "ncr", "gurgaon", "gurugram", "noida", "okhla", "dwarka", "rohini"],
-  hyderabad: ["hyderabad", "hitec city", "gachibowli", "kukatpally", "banjara hills"],
-  pune: ["pune", "baner", "hinjawadi", "kothrud", "viman nagar", "magarpatta"],
-  chennai: ["chennai", "madras", "adyar", "anna nagar", "velachery", "guindy", "omr"],
-};
-
-/** All lowercase spellings that represent the requested city. */
-function cityNeedles(city: string): string[] {
-  const base = city.toLowerCase().split(",")[0].trim();
-  return CITY_ALIASES[base] ?? [base];
+/** All source spellings for the requested city, shared with public filters. */
+function cityNeedles(city: string): readonly string[] {
+  return cityAliases(city.split(",")[0]);
 }
 
 /** Drop rows that are closed, undated, or already in the past. */
@@ -279,7 +270,7 @@ const devpostFetch: ExtractFn = async (city) => {
 // after Devfolio.
 const UNSTOP_PER_PAGE = 50;
 
-const unstopFetch: ExtractFn = async (city) => {
+const unstopFetch: ExtractFn = async (_city) => {
   try {
     const url =
       `https://unstop.com/api/public/opportunity/search-result?opportunity=hackathons` +
@@ -397,7 +388,7 @@ const unstopFetch: ExtractFn = async (city) => {
         endDate: undefined,
         deadlineKind: "registration",
         venue: isOnline ? undefined : venueRaw || undefined,
-        city: isOnline ? undefined : String(addr.city ?? "").trim() || city,
+        city: isOnline ? undefined : String(addr.city ?? "").trim() || undefined,
         isOnline,
         organizer: orgName || "Unstop",
         link: seoUrl || undefined,

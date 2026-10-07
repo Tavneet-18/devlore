@@ -4,6 +4,7 @@ import { isEventType } from "./constants";
 import type { EventDetails } from "./event-details";
 import { parseDetails } from "./event-details";
 import { getSchemaCapabilities } from "./schema-capabilities";
+import { cityAliases, normaliseMode } from "./event-filters";
 
 export function parseTags(event: Pick<Event, "tags">): string[] {
   try {
@@ -118,7 +119,8 @@ export function actionableEventWhere(now = new Date()): Prisma.EventWhereInput {
 export function buildEventWhere(input: EventQuery, now = new Date()): Prisma.EventWhereInput {
   const and: Prisma.EventWhereInput[] = [actionableEventWhere(now)];
   if (input.city) {
-    and.push({ OR: [{ city: { contains: input.city, mode: "insensitive" } }, { isOnline: true }] });
+    // A selected city means a published location match, not every online event.
+    and.push({ OR: cityAliases(input.city).map(alias => ({ city: { contains: alias, mode: "insensitive" } })) });
   }
   if (input.q) {
     and.push({ OR: [
@@ -134,8 +136,9 @@ export function buildEventWhere(input: EventQuery, now = new Date()): Prisma.Eve
   }
   const where: Prisma.EventWhereInput = { status: "APPROVED", AND: and };
   if (input.type && isEventType(input.type)) where.eventType = input.type;
-  if (input.mode === "online") where.isOnline = true;
-  else if (input.mode === "offline") where.isOnline = false;
+  const mode = normaliseMode(input.mode);
+  if (mode === "online") where.isOnline = true;
+  else if (mode === "offline") where.isOnline = false;
   if (input.beginner) where.beginnerFriendly = true;
   return where;
 }
