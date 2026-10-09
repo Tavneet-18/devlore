@@ -18,9 +18,11 @@ import {
   registrationDeadline,
   countdownHeading,
   buildGlance,
+  type GlanceRow,
 } from "@/lib/event-summary";
 import { buildIcs, googleCalendarUrl } from "@/lib/calendar";
 import { BookmarkButton } from "@/components/BookmarkButton";
+import { ReportEventButton } from "@/components/ReportEventButton";
 import { IndexRow } from "@/components/IndexRow";
 import { EventPoster, accentFor, accentTextFor } from "@/components/EventCard";
 import { getViewerId } from "@/lib/session";
@@ -37,6 +39,43 @@ export const dynamic = "force-dynamic";
  * bounded index scan rather than a table read.
  */
 const SIMILAR_POOL = 60;
+
+/**
+ * The sentence for a fact the source never published.
+ *
+ * A missing venue, eligibility, fee or unknown deadline is stated as missing
+ * rather than omitted, so a reader can tell "the source didn't say" apart from
+ * "this page forgot to show it". Nothing is inferred to fill the gap.
+ */
+const NOT_PUBLISHED = "Not published by the source";
+
+/**
+ * Append the missing-fact rows to a glance list.
+ *
+ * Mirrored in components/EventQuickLook.tsx — keep the labels and the value
+ * identical so both surfaces say the same thing. Deliberately local to each
+ * file rather than shared from lib: the labels are display copy, and neither
+ * surface may import the other's helpers.
+ *
+ * The deadline row only appears when the listing carries no deadline kind at
+ * all, meaning even the meaning of its dates is unknown. Listings with a known
+ * kind already speak for themselves: registration shows its closing date, and
+ * end-date-only sources show "Runs until" without pretending it is a deadline.
+ */
+function withMissingRows(
+  rows: GlanceRow[],
+  opts: { isOnline: boolean; deadlineKind: string | null }
+): GlanceRow[] {
+  const seen = new Set(rows.map((r) => r.label));
+  const out = [...rows];
+  if (!opts.isOnline && !seen.has("Venue")) out.push({ label: "Venue", value: NOT_PUBLISHED });
+  if (!seen.has("Who can join")) out.push({ label: "Who can join", value: NOT_PUBLISHED });
+  if (!seen.has("Entry fee")) out.push({ label: "Entry fee", value: NOT_PUBLISHED });
+  if (!opts.deadlineKind && !seen.has("Registration deadline") && !seen.has("Registration closes")) {
+    out.push({ label: "Registration deadline", value: NOT_PUBLISHED });
+  }
+  return out;
+}
 
 async function loadEvent(id: string) {
   const event = await db.event.findUnique({ where: { id }, select: await eventSelect() });
@@ -153,6 +192,14 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
   const tags = parseTags(event);
   const sourceName = sourceLabel(dto.source);
 
+  // The adapters store city: "India" when the source published no city, so the
+  // string means "somewhere in the country", never a venue. Everything
+  // downstream of location — the header line and the JSON-LD — treats it as
+  // missing rather than printing the country as the venue.
+  const venueName =
+    (details?.venue && details.venue !== "India" ? details.venue : null) ??
+    (dto.city && dto.city !== "India" ? dto.city : null);
+
   const summaryInput = {
     title: dto.title,
     source: dto.source,
@@ -194,13 +241,20 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
       })
     : null;
 
-  // The at-a-glance rows. Built and filtered in lib/event-summary so the same
-  // omission rules apply here and in the tests. A row with no data is absent,
-  // never rendered with a dash.
-  const glance = buildGlance({ ...summaryInput, whoCanJoin });
-  const location = dto.isOnline ? "Online" : (dto.city ?? "Location TBA");
+  // The at-a-glance rows. Built in lib/event-summary, then marked where the
+  // source published nothing: venue, eligibility, fee and an unknown deadline
+  // read as "Not published by the source" rather than vanishing silently.
+  // "India" is the adapters' fallback for a missing city, never a venue, so a
+  // Venue row carrying it is rewritten too. Labels match EventQuickLook.
+  const glance = withMissingRows(
+    buildGlance({ ...summaryInput, whoCanJoin }).map((row) =>
+      row.label === "Venue" && row.value === "India" ? { ...row, value: NOT_PUBLISHED } : row
+    ),
+    { isOnline: dto.isOnline, deadlineKind: dto.deadlineKind }
+  );
+  const location = dto.isOnline ? "Online" : (venueName ?? NOT_PUBLISHED);
 
-  const jsonLd = buildEventJsonLd(dto, details?.organiser ?? null, whoCanJoin);
+  const jsonLd = buildEventJsonLd(dto, details?.organiser ?? null, whoCanJoin, venueName);
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-10 sm:px-10">
@@ -316,6 +370,10 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
               Details can change. Confirm on the official page before registering.
             </p>
           </div>
+
+          <div className="mt-8 border-t border-line pt-5">
+            <ReportEventButton eventId={dto.id} />
+          </div>
         </div>
 
         <aside className="lg:sticky lg:top-24 lg:self-start">
@@ -339,6 +397,7 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
               href={dto.link}
               target="_blank"
               rel="noopener noreferrer"
+              data-devlore-outbound={dto.id}
               className="glow-primary mt-8 block rounded-[2px] bg-gradient-to-r from-primary to-primary-2 px-4 py-2.5 text-center text-sm font-semibold text-bg transition-all duration-200 hover:brightness-105"
             >
               {active && dates.kind === "registration" ? "Register on" : active && dates.kind === "submission" ? "View submissions on" : "View listing on"} {sourceName}
@@ -430,11 +489,14 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
  * `endDate` is only emitted when the source published one, and the event
  * status is derived rather than asserted. The organiser falls back to the
  * listing's own text rather than to the platform name, which would be false.
+ * The location is omitted entirely when no venue was published: the alternative
+ * would be the adapters' "India" fallback, which is a country, not a venue.
  */
 function buildEventJsonLd(
   dto: ReturnType<typeof toEventDTO>,
   organiser: string | null,
-  whoCanJoin: string | null
+  whoCanJoin: string | null,
+  venueName: string | null
 ) {
   const dates = eventDates(dto);
 
@@ -448,12 +510,12 @@ function buildEventJsonLd(
     eventAttendanceMode: dto.isOnline
       ? "https://schema.org/OnlineEventAttendanceMode"
       : "https://schema.org/OfflineEventAttendanceMode",
-    ...(dto.isOnline
+    ...(dto.isOnline || !venueName
       ? {}
       : {
           location: {
             "@type": "Place",
-            name: dto.details?.venue ?? dto.city ?? "India",
+            name: venueName,
             address: { "@type": "PostalAddress", addressCountry: dto.country },
           },
         }),

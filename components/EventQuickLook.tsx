@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef } from "react";
-import { buildGlance } from "@/lib/event-summary";
+import { buildGlance, type GlanceRow } from "@/lib/event-summary";
 import { EVENT_TYPE_LABELS } from "@/lib/constants";
 import { accentFor, accentTextFor } from "./EventCard";
+import { ReportEventButton } from "./ReportEventButton";
 import type { EventDTO } from "@/lib/events";
 
 /**
@@ -18,8 +19,9 @@ import type { EventDTO } from "@/lib/events";
  * silently fails: an overlay that looks modal but lets Tab walk into the
  * invisible page behind it is worse than no overlay, because it looks correct.
  *
- * The facts come from buildGlance(), the same builder the detail page uses, so
- * a field the source never published is omitted here for the same reason and in
+ * The facts come from buildGlance(), the same builder the detail page uses,
+ * plus the same stated-missing rows (see withMissingRows below): a venue,
+ * eligibility, fee or unknown deadline the source never published reads as
  * the same way it is omitted there — no dash, no "TBA", no invented default.
  * There is no fallback prose either: when an event has no brief and no summary,
  * this shows the facts alone rather than writing something to fill the space.
@@ -27,6 +29,30 @@ import type { EventDTO } from "@/lib/events";
  * Data cost: none. Every field rendered here already arrived with the list
  * payload in EventDTO.details, so opening this is a DOM operation, not a fetch.
  */
+
+/**
+ * The sentence for a fact the source never published.
+ *
+ * Mirrored in app/events/[id]/page.tsx — keep the labels and the value
+ * identical so both surfaces say the same thing. See the note there for why
+ * the deadline row only appears when the listing carries no deadline kind.
+ */
+const NOT_PUBLISHED = "Not published by the source";
+
+function withMissingRows(
+  rows: GlanceRow[],
+  opts: { isOnline: boolean; deadlineKind: string | null }
+): GlanceRow[] {
+  const seen = new Set(rows.map((r) => r.label));
+  const out = [...rows];
+  if (!opts.isOnline && !seen.has("Venue")) out.push({ label: "Venue", value: NOT_PUBLISHED });
+  if (!seen.has("Who can join")) out.push({ label: "Who can join", value: NOT_PUBLISHED });
+  if (!seen.has("Entry fee")) out.push({ label: "Entry fee", value: NOT_PUBLISHED });
+  if (!opts.deadlineKind && !seen.has("Registration deadline") && !seen.has("Registration closes")) {
+    out.push({ label: "Registration deadline", value: NOT_PUBLISHED });
+  }
+  return out;
+}
 
 export function EventQuickLook({
   event,
@@ -87,18 +113,27 @@ export function EventQuickLook({
     return () => el.removeEventListener("click", onClick);
   }, [close]);
 
+  // Who can join falls back to the raw eligibility text when the derived line is
+  // unavailable here: the derivation lives in server-only code this client
+  // component may not import, and published text beats a missing row. Either
+  // way the labels match the detail page, via the mirrored withMissingRows.
   const glance = event
-    ? buildGlance({
-        title: event.title,
-        source: event.source,
-        date: event.date,
-        endDate: event.endDate,
-        deadlineKind: event.deadlineKind,
-        isOnline: event.isOnline,
-        city: event.city,
-        details: event.details,
-        whoCanJoin: event.whoCanJoin,
-      })
+    ? withMissingRows(
+        buildGlance({
+          title: event.title,
+          source: event.source,
+          date: event.date,
+          endDate: event.endDate,
+          deadlineKind: event.deadlineKind,
+          isOnline: event.isOnline,
+          city: event.city,
+          details: event.details,
+          whoCanJoin: event.whoCanJoin ?? event.details?.eligibility ?? null,
+        }).map((row) =>
+          row.label === "Venue" && row.value === "India" ? { ...row, value: NOT_PUBLISHED } : row
+        ),
+        { isOnline: event.isOnline, deadlineKind: event.deadlineKind }
+      )
     : [];
 
   // The brief is the model's summary of the source text and is the only prose
@@ -179,7 +214,7 @@ export function EventQuickLook({
         </div>
 
         {event && (
-          <div className="border-t border-line px-6 py-4">
+          <div className="space-y-4 border-t border-line px-6 py-4">
             <Link
               href={`/events/${event.id}`}
               onClick={close}
@@ -187,6 +222,7 @@ export function EventQuickLook({
             >
               View full details &rarr;
             </Link>
+            <ReportEventButton eventId={event.id} />
           </div>
         )}
       </div>
