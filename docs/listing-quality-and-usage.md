@@ -68,3 +68,14 @@ and filter regressions, and new fixture-only listing-quality and API/counter tes
 The latter mock all database operations; storage-failure and rate-limit responses
 are exercised without production writes. A live database migration and integrated
 OpenCode UI check remain part of release validation.
+
+## Local integration
+
+OpenCode commit `63da261` was merged into the Codex branch locally. The official
+source-link tracking marker is present. Integration fixes put the quick-look
+report form inside its scrolling content and reset report state between events.
+The combined quick-look/report render checks pass, as do backend regressions,
+client-boundary checks and lint. Interactive browser verification was attempted
+but blocked by the Windows computer-use sandbox launcher failing to start.
+Temporary fixture files and servers were removed/stopped. No production database
+writes, migration, push or deployment were performed.

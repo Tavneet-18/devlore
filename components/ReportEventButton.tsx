@@ -194,9 +194,7 @@ export function ReportEventButton({ eventId }: { eventId: string }) {
 /**
  * What the reader sees when the report did not go through. The form is left
  * untouched in every case — the failure is reported beside it, not instead of
- * it. The endpoint is still being built, so a 404 today likely means "not
- * deployed yet" rather than "event gone"; either way the honest message is that
- * nothing was sent.
+ * it. A 404 means the listing cannot accept a report.
  */
 async function failureMessage(res: Response): Promise<string> {
   if (res.status === 400) {
@@ -205,7 +203,7 @@ async function failureMessage(res: Response): Promise<string> {
       "That report was rejected — please choose a reason and try again."
     );
   }
-  if (res.status === 404) return "This listing no longer exists, so there is nothing to report.";
+  if (res.status === 404) return "This listing is unavailable for reporting — your report was not sent.";
   if (res.status === 429)
     return "Too many reports from here — please wait a while and try again.";
   if (res.status === 503)

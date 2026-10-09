@@ -21,8 +21,8 @@ import type { EventDTO } from "@/lib/events";
  *
  * The facts come from buildGlance(), the same builder the detail page uses,
  * plus the same stated-missing rows (see withMissingRows below): a venue,
- * eligibility, fee or unknown deadline the source never published reads as
- * the same way it is omitted there — no dash, no "TBA", no invented default.
+ * eligibility, fee or unknown deadline the source never published is stated
+ * as missing, with no invented default.
  * There is no fallback prose either: when an event has no brief and no summary,
  * this shows the facts alone rather than writing something to fill the space.
  *
@@ -203,6 +203,12 @@ export function EventQuickLook({
             </dl>
           )}
 
+          {event && (
+            <div className="mt-6 border-t border-line pt-4">
+              <ReportEventButton key={event.id} eventId={event.id} />
+            </div>
+          )}
+
           {/* Neither prose nor facts: say so plainly rather than showing a panel
               with nothing in it. */}
           {!prose && glance.length === 0 && (
@@ -222,7 +228,6 @@ export function EventQuickLook({
             >
               View full details &rarr;
             </Link>
-            <ReportEventButton eventId={event.id} />
           </div>
         )}
       </div>
