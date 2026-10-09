@@ -1,8 +1,9 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { after, NextResponse, type NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { toEventDTO } from "@/lib/events";
 import { newViewerId, VIEWER_COOKIE } from "@/lib/session";
 import { cookies } from "next/headers";
+import { countUsage } from "@/lib/usage";
 
 export const dynamic = "force-dynamic";
 
@@ -57,11 +58,11 @@ export async function POST(request: NextRequest) {
   const event = await db.event.findUnique({ where: { id: body.eventId } });
   if (!event) return NextResponse.json({ error: "Event not found" }, { status: 404 });
 
-  await db.bookmark.upsert({
-    where: { viewerId_eventId: { viewerId, eventId: body.eventId } },
-    create: { viewerId, eventId: body.eventId },
-    update: {},
+  const saved = await db.bookmark.createMany({
+    data: [{ viewerId, eventId: body.eventId }],
+    skipDuplicates: true,
   });
+  if (saved.count > 0) after(async () => { await countUsage(["save"]); });
 
   return NextResponse.json({ message: "Saved" }, { status: 201 });
 }

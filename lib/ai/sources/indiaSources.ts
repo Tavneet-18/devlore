@@ -80,13 +80,14 @@ function plain(value: unknown, max = 600): string {
 const INDIA_HINTS =
   /\b(india|indian|bengaluru|bangalore|mumbai|delhi|hyderabad|pune|chennai|kolkata|ahmedabad|jaipur|indore|kochi|coimbatore|chandigarh|noida|gurgaon|gurugram|haryana|maharashtra|karnataka|telangana|gujarat|rajasthan|madhya pradesh|tamil nadu|uttar pradesh|new delhi|navi mumbai|thane|pune)\b/i;
 
-/**
- * A location string that names a delivery format rather than a place.
- *
- * WeMakeDevs puts "Hybrid" or "Online" in its location field for events with no
- * fixed venue. Treating that as an address would put "Venue: Hybrid" on the
- * detail page, which is not a venue.
- */
+/** Normalize source dates so date-only values pass structured-fact validation. */
+function publishedDate(value: string | undefined): string | null {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+}
+
+/** WeMakeDevs sometimes puts a delivery format, rather than an address, in location. */
 function isFormatWord(value: string): boolean {
   return /^(online|virtual|remote|hybrid|in[- ]?person|offline|tbd|anywhere|global)$/i.test(value.trim());
 }
@@ -205,7 +206,7 @@ const devfolioFetch = async (): Promise<RawEvent[]> => {
         date: start ?? String(reference),
         endDate: reference ?? undefined,
         deadlineKind: regEnd ? "registration" : "event-end",
-        city: isOnline ? undefined : "India",
+        city: undefined,
         isOnline,
         // Devfolio is the platform hosting the listing. The organising body is
         // not in the payload, so this says so instead of naming the platform
@@ -531,7 +532,8 @@ const wemakedevsFetch = async (): Promise<RawEvent[]> => {
       const details: EventDetails = {
         ...(prize ? { prize } : {}),
         ...(venue ? { venue } : {}),
-        ...(card.startDate ? { regStart: String(card.startDate) } : {}),
+        eventStart: publishedDate(card.startDate),
+        eventEnd: publishedDate(card.endDate),
         // Explicit, because a reader looking for a closing date deserves to be
         // told the platform does not publish one.
         noDeadlineReason: "WeMakeDevs publishes no registration deadline for this hackathon.",
@@ -543,7 +545,6 @@ const wemakedevsFetch = async (): Promise<RawEvent[]> => {
         title,
         description: [
           prize ? `Prizes: ${prize}.` : "",
-          `${title} on WeMakeDevs — a global developer community across 40 countries.`,
         ]
           .filter(Boolean)
           .join(" "),
@@ -551,7 +552,7 @@ const wemakedevsFetch = async (): Promise<RawEvent[]> => {
         endDate: String(card.endDate),
         // No registration deadline is published; we count down to the end date.
         deadlineKind: "event-end",
-        city: isOnline ? undefined : venue || "India",
+        city: isOnline ? undefined : venue || undefined,
         isOnline,
         organizer: "Not stated by the listing (on WeMakeDevs)",
         link,
@@ -620,16 +621,15 @@ const mlhFetch = async (): Promise<RawEvent[]> => {
         const format = String(e.formatType ?? "").toLowerCase();
         const isOnline = format === "virtual" || format === "online";
         const venue = plain(e.location, 60);
+        const address = e.venueAddress;
 
         // MLH's 2027 season is dominated by North American university
         // hackathons, and none of them publish a registration deadline. Keep
         // only what is online or actually in India.
-        if (!isInScope({ isOnline, city: venue, venue })) continue;
+        const inIndia = /^(in|india)$/i.test(String(address?.country ?? "").trim());
+        if (!inIndia && !isInScope({ isOnline, city: address?.city, venue })) continue;
 
-        // MLH events carry a real venue in the payload, and MLH genuinely is
-        // the organiser for its own events — unlike Devfolio and Hack2skill,
-        // where the platform is only the marketplace.
-        const address = e.venueAddress;
+        // The season page publishes venue facts, but does not name an organiser.
         // `location` usually already reads "City, State", so appending the
         // structured address yields "Ghaziabad, Uttar Pradesh, Ghaziabad,
         // Uttar Pradesh, IN". Keep a part only if the text so far does not
@@ -646,7 +646,10 @@ const mlhFetch = async (): Promise<RawEvent[]> => {
           .slice(0, 200);
 
         const details: EventDetails = {
-          ...(venueFull ? { organiser: "Major League Hacking", venue: venueFull } : {}),
+          // A season listing identifies an MLH member event, not its organiser.
+          ...(!isOnline && venueFull ? { venue: venueFull } : {}),
+          eventStart: publishedDate(e.startsAt),
+          eventEnd: publishedDate(e.endsAt),
           // MLH publishes a date range and nothing else about entry.
           noDeadlineReason: "Major League Hacking publishes no registration deadline for this event.",
         };
@@ -655,14 +658,14 @@ const mlhFetch = async (): Promise<RawEvent[]> => {
           source: "mlh",
           sourceId,
           title,
-          description: `${title} — a Major League Hacking event${venue ? ` in ${venue}` : ""}.`,
+          description: venue && !isOnline ? `Location: ${venue}.` : "",
           date: e.startsAt ?? String(e.endsAt),
           endDate: e.endsAt ?? undefined,
           // No registration deadline is published by MLH.
           deadlineKind: "event-end",
-          city: isOnline ? undefined : venue || "India",
+          city: isOnline ? undefined : plain(address?.city, 60) || venue || undefined,
           isOnline,
-          organizer: "Major League Hacking",
+          organizer: "Not stated by the listing (on Major League Hacking)",
           link: safeUrl(e.websiteUrl, MLH_BASE) ?? `${MLH_BASE}/events/${e.slug ?? ""}`,
           imageUrl: safeUrl(e.backgroundUrl, MLH_BASE) ?? undefined,
           eventType: "hackathon",

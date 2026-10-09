@@ -10,6 +10,7 @@ import { TimeAxisMobile } from "./TimeAxisMobile";
 import { SkeletonCard } from "./SkeletonCard";
 import { isActionable } from "@/lib/event-dates";
 import { FILTER_CITIES } from "@/lib/event-filters";
+import { sendUsage } from "@/lib/usage-client";
 
 const TIMEFRAMES = [
   { id: "all", label: "Upcoming" },
@@ -59,6 +60,7 @@ export function EventExplorer({
   /** Set when a request has taken so long that waiting further is pointless. */
   const [stalled, setStalled] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
+  const lastMeasuredSearch = useRef("");
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedQ(q), 300);
@@ -113,6 +115,13 @@ export function EventExplorer({
       if (controller.signal.aborted || abortRef.current !== controller) return;
       setEvents(data.events as EventDTO[]);
       setCount(data.count as number);
+      // Count resolved searches/filter changes, not initial browsing, retries,
+      // aborted requests or React's duplicate development effects.
+      const searchKey = params.toString();
+      if (searchKey && searchKey !== lastMeasuredSearch.current) {
+        sendUsage({ kind: "search", empty: data.count === 0 });
+      }
+      lastMeasuredSearch.current = searchKey;
     } catch (err) {
       if (!controller.signal.aborted && abortRef.current === controller && (err as Error).name !== "AbortError") {
         setEvents(null);

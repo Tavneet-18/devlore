@@ -159,7 +159,9 @@ export function buildGlance(input: SummaryInput & { whoCanJoin?: string | null }
   }
 
   add("Mode", input.isOnline ? "Online" : "In person");
-  add("Venue", d?.venue ?? (input.isOnline ? null : input.city));
+  // A country/city column is a filter hint, not a published physical venue.
+  const venue = d?.venue?.trim();
+  add("Venue", venue && !/^(india|online|virtual|remote|hybrid|tbd|anywhere|global)$/i.test(venue) ? venue : null);
   add("Prizes", d?.prize);
   add("Team size", teamSizeLabel(d));
   add("Who can join", input.whoCanJoin ?? null);

@@ -52,6 +52,7 @@ model Event {
 
   bookmarks Bookmark[]
   sourceRefs EventSourceRef[]
+  reports EventReport[]
 
   @@index([status])
   @@index([eventType])
@@ -136,6 +137,27 @@ model Bookmark {
 
   @@unique([viewerId, eventId])
   @@index([viewerId])
+}
+
+model DailyMetric {
+  day   DateTime @db.Date
+  kind  String
+  count Int      @default(0)
+
+  @@id([day, kind])
+}
+
+model EventReport {
+  id        String   @id @default(cuid())
+  eventId   String
+  reason    String
+  comment   String?
+  status    String   @default("OPEN")
+  createdAt DateTime @default(now())
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt])
+  @@index([eventId])
 }
 
 // The view counter and this table were dropped in

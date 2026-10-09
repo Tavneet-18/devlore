@@ -143,9 +143,8 @@ function isStillRelevant(date: string): boolean {
  * `status[]` filter is the reliable way to get live registrations, so we
  * page through the open list instead and then filter by city ourselves.
  *
- * Online entries have no city, so they are included for every query — that
- * is intentional, since our own city filter already treats online events as
- * matching every city.
+ * Online entries are collected once alongside local results. The public city
+ * filter still requires a published city; online does not imply every city.
  */
 const devpostFetch: ExtractFn = async (city) => {
   const needles = cityNeedles(city);
@@ -203,9 +202,6 @@ const devpostFetch: ExtractFn = async (city) => {
             themes.length ? `Tracks: ${themes.join(", ")}.` : "",
             prize ? `Prize pool: ${prize}.` : "",
             registrations ? `${registrations.toLocaleString()} registered builders.` : "",
-            `Apply on Devpost and build with a team in ${
-              isOnline ? "a virtual open-source sprint" : location || city
-            }.`,
           ]
             .filter(Boolean)
             .join(" "),
@@ -213,11 +209,18 @@ const devpostFetch: ExtractFn = async (city) => {
           endDate: range.end,
           // This is a submission deadline, not a registration deadline.
           deadlineKind: "submission",
-          details: { eventStart: null, eventEnd: null, submissionStart: range.start, submissionEnd: range.end },
-          venue: location || undefined,
-          city: isOnline ? undefined : location || city,
+          details: {
+            eventStart: null, eventEnd: null, submissionStart: range.start, submissionEnd: range.end,
+            ...(prize ? { prize: prize.slice(0, 300) } : {}),
+            ...(themes.length ? { themes: themes.slice(0, 20).map(theme => theme.slice(0, 60)) } : {}),
+            ...(Number.isInteger(registrations) && registrations >= 0 && registrations <= 1_000_000 && h.registrations_count != null ? { participants: registrations } : {}),
+            ...(!isOnline && location ? { venue: location.slice(0, 200) } : {}),
+            ...(String(h.organization_name ?? "").trim() ? { organiser: String(h.organization_name).trim().slice(0, 120) } : {}),
+          },
+          venue: isOnline ? undefined : location || undefined,
+          city: isOnline ? undefined : location || undefined,
           isOnline,
-          organizer: String(h.organization_name ?? "Devpost"),
+          organizer: String(h.organization_name ?? "").trim() || "Not stated by the listing (on Devpost)",
           link: String(h.url ?? "https://devpost.com/hackathons"),
           imageUrl: normaliseImage(String(h.thumbnail_url ?? "")),
           eventType: "hackathon",
@@ -390,7 +393,7 @@ const unstopFetch: ExtractFn = async (_city) => {
         venue: isOnline ? undefined : venueRaw || undefined,
         city: isOnline ? undefined : String(addr.city ?? "").trim() || undefined,
         isOnline,
-        organizer: orgName || "Unstop",
+        organizer: orgName || "Not stated by the listing (on Unstop)",
         link: seoUrl || undefined,
         // The organiser's mark, not an event poster. Unstop publishes no event
         // image in this payload — `thumb` is the literal string "null" — so
@@ -404,6 +407,7 @@ const unstopFetch: ExtractFn = async (_city) => {
           eventStart: null,
           eventEnd: null,
           regEnd,
+          ...(!isOnline && venueRaw ? { venue: venueRaw.slice(0, 200) } : {}),
           ...(prizeLabel ? { prize: prizeLabel.slice(0, 300) } : {}),
           ...(eligibility ? { eligibility: eligibility.slice(0, 400) } : {}),
           ...(teamMin >= 1 ? { teamMin } : {}),
@@ -563,7 +567,7 @@ const gdgFetch: ExtractFn = async (city) => {
         deadlineKind: "event-end",
         // A virtual session has no venue, and claiming the chapter's city as one
         // would put a location on an event with no physical location.
-        venue: isOnline ? undefined : chapterTitle || undefined,
+        venue: undefined,
         city: isOnline ? undefined : city,
         isOnline,
         // The chapter, named by the platform. Not "GDG Community", which is a
@@ -572,6 +576,12 @@ const gdgFetch: ExtractFn = async (city) => {
         link,
         imageUrl: image,
         eventType: "meetup",
+        details: {
+          eventStart: date,
+          eventEnd: endDate ?? null,
+          ...(chapterTitle ? { organiser: chapterTitle.slice(0, 120) } : {}),
+          noDeadlineReason: "The chapter publishes no registration deadline for this session.",
+        },
       });
     }
     return out;

@@ -5,6 +5,7 @@ import { Nameplate } from "@/components/Nameplate";
 import { Footer } from "@/components/Footer";
 import { THEME_INIT_SCRIPT } from "@/components/ThemeToggle";
 import { dateLine } from "@/lib/issue";
+import { UsageObserver } from "@/components/UsageObserver";
 
 const spaceGrotesk = Space_Grotesk({
   variable: "--font-space-grotesk",
@@ -61,6 +62,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           is required because the class may differ from what SSR emitted. */}
       <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       <body className="relative min-h-full bg-bg text-ink">
+        <UsageObserver />
         {/* Skip to content. The nameplate and footer are on every page, so a
             keyboard user opening any route had to Tab through the full nav on
             every navigation to reach the thing they came for. sr-only until
