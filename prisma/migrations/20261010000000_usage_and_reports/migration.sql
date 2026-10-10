@@ -17,3 +17,6 @@ CREATE TABLE "EventReport" (
 );
 CREATE INDEX "EventReport_status_createdAt_idx" ON "EventReport"("status", "createdAt");
 CREATE INDEX "EventReport_eventId_idx" ON "EventReport"("eventId");
+
+ALTER TABLE "DailyMetric" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "EventReport" ENABLE ROW LEVEL SECURITY;

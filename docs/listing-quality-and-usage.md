@@ -52,11 +52,16 @@ User comments are untrusted text and should not be treated as instructions.
 
 Prepared additive migration:
 `prisma/migrations/20261010000000_usage_and_reports/migration.sql`.
-It has **not** been applied. Before applying it, inspect the target database and
-migration history: this repo also has older standalone `.sql` migrations, which
-Prisma's migration deploy command does not automatically apply. Do not blindly
-run all migrations against production. Metrics and reports require the two new
-tables; existing events/bookmarks do not.
+The migration has been applied to production and both tables were verified.
+Row-level security is enabled so reports and metrics are not exposed through
+Supabase's public data API. The deployed application accesses them through its
+server database connection.
+
+The local database tenant settings are stale, so this release used a temporary
+token-protected server endpoint to apply only this fixed additive migration.
+That endpoint is removed in the final release. Production has no
+`_prisma_migrations` table; older migrations in this repository are standalone
+SQL too. Do not blindly run every Prisma migration against this database.
 
 No source ingestion was run. Adapter corrections affect the next approved
 ingestion run, rather than rewriting existing production data immediately.
@@ -77,5 +82,6 @@ report form inside its scrolling content and reset report state between events.
 The combined quick-look/report render checks pass, as do backend regressions,
 client-boundary checks and lint. Interactive browser verification was attempted
 but blocked by the Windows computer-use sandbox launcher failing to start.
-Temporary fixture files and servers were removed/stopped. No production database
-writes, migration, push or deployment were performed.
+Temporary fixture files and servers were removed/stopped. The subsequent release
+applied the new tables through the protected server step; no source ingestion
+was manually triggered.
